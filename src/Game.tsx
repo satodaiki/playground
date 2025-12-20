@@ -117,11 +117,38 @@ export default function JoyaNoKane() {
   const { current: info, next: nextLevel } = getLevelInfo(strikeCount);
   const lvIdx = (isHardMode ? hardLevels : normalLevels).indexOf(info);
 
-  const audioPoolRef = useRef([]); 
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true); // サウンド設定ステータス
+  const audioPoolRef = useRef([]);
   const MAX_CONCURRENT_SOUNDS = 3;
 
+  // --- サウンド切り替え関数 ---
+  const toggleSound = () => {
+    const nextState = !isSoundEnabled;
+    setIsSoundEnabled(nextState);
+    
+    // オフにした瞬間、鳴っている音をすべて止める
+    if (!nextState) {
+      audioPoolRef.current.forEach((audio: HTMLAudioElement) => {
+        audio.pause();
+        audio.src = "";
+      });
+      audioPoolRef.current = [];
+    }
+  };
+
   // --- 音声再生関数 ---
-  const playBellSound = (idx) => {
+  const playBellSound = (idx: number) => {
+    if (!isSoundEnabled) {
+      if (audioPoolRef.current.length > 0) {
+        audioPoolRef.current.forEach((audio: HTMLAudioElement) => {
+          audio.pause();
+          audio.src = "";
+        });
+        audioPoolRef.current = [];
+      }
+      return;
+    }
+
     // 1. すでに3つ再生されている場合は、最も古い音を停止して削除
     if (audioPoolRef.current.length >= MAX_CONCURRENT_SOUNDS) {
       const oldestAudio = audioPoolRef.current.shift();
@@ -309,14 +336,19 @@ playground.neer-engineer.com
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: 'black', color: 'white', fontFamily: 'serif' }}>
       <div style={{ marginTop: '1rem', marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
-        <button onClick={() => { setStrikeCount(0); setIsPaused(false); setShowConfirm(false); setHasReachedMaxLevel(false); setIsHardMode(false); }} style={{ backgroundColor: '#0f172a', color: '#64748b', border: '1px solid #1e293b', padding: '0.5rem 1rem', borderRadius: '999px', fontSize: '0.75rem', cursor: 'pointer' }}>修行をやり直す</button>
-        {/* X共有ボタン */}
-        <button 
-          onClick={shareOnX} 
-          style={{ padding: '8px 16px', borderRadius: '20px', border: 'none', background: '#fff', color: '#000', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '5px' }}
+        {/* サウンドON/OFFボタン */}
+        <button
+          onClick={toggleSound}
+          style={{ 
+            padding: '8px 16px', borderRadius: '20px', border: '1px solid #333', 
+            background: isSoundEnabled ? '#1e293b' : '#450a0a', 
+            color: '#fff', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '5px' 
+          }}
         >
-          <span>𝕏</span> 結果を共有
+          {isSoundEnabled ? '🔊 ON' : '🔇 OFF'}
         </button>
+        
+        <button onClick={() => { setStrikeCount(0); setIsPaused(false); setShowConfirm(false); setHasReachedMaxLevel(false); setIsHardMode(false); }} style={{ backgroundColor: '#0f172a', color: '#64748b', border: '1px solid #1e293b', padding: '0.5rem 1rem', borderRadius: '999px', fontSize: '0.75rem', cursor: 'pointer' }}>修行をやり直す</button>
         {hasReachedMaxLevel && (
           <button onClick={() => { setIsHardMode(!isHardMode); setStrikeCount(0); }} style={{ backgroundColor: isHardMode ? '#7f1d1d' : '#065f46', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }}>
             {isHardMode ? '通常モードへ戻る' : '修羅の道へ（ハード解禁）'}
@@ -338,6 +370,15 @@ playground.neer-engineer.com
             </div>
           </div>
         )}
+      </div>
+      <div style={{ marginTop: '1rem', marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
+        {/* X共有ボタン */}
+        <button 
+          onClick={shareOnX} 
+          style={{ padding: '8px 16px', borderRadius: '20px', border: 'none', background: '#fff', color: '#000', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '5px' }}
+        >
+          <span>𝕏</span> 結果を共有
+        </button>
       </div>
       <p style={{ marginTop: '1rem', color: '#475569', fontSize: '0.875rem' }}>
         ※ 最初にキャンバスを一度クリックしてください。その後、鐘を突くと音が鳴ります。
