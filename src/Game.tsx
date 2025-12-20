@@ -20,13 +20,18 @@ const BG_IMAGES_PATHS = {
 };
 
 export default function JoyaNoKane() {
+  type BgType = typeof BG_IMAGES_PATHS;
+  type CategoryType = keyof BgType;
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [strikeCount, setStrikeCount] = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isHardMode, setIsHardMode] = useState(false);
   const [hasReachedMaxLevel, setHasReachedMaxLevel] = useState(false);
-  const [loadedImages, setLoadedImages] = useState({ normal: {}, hard: {} });
+  const [loadedImages, setLoadedImages] = useState<{
+    [K in CategoryType]: Partial<Record<keyof BgType[K], HTMLImageElement>>
+  }>({ normal: {}, hard: {} });
 
   const mousePosRef = useRef({ x: 0, y: 0 });
   const prevMousePosRef = useRef({ x: 0, y: 0 });
@@ -39,24 +44,40 @@ export default function JoyaNoKane() {
   });
 
   const lastStrikeTimeRef = useRef(0);
-  const animationRef = useRef(null);
+  const animationRef = useRef<number>(null);
 
   // --- 画像のプリロード ---
   useEffect(() => {
     const loadAllImages = async () => {
-      const newImages = { normal: {}, hard: {} };
-      const categories = ['normal', 'hard'];
-
-      for (const cat of categories) {
+      const newImages: { [K in CategoryType]: Partial<Record<keyof BgType[K], HTMLImageElement>> } = {
+        normal: {},
+        hard: {}
+      };
+      
+      const preloadCategory = async <T extends CategoryType>(cat: T) => {
         for (const [key, path] of Object.entries(BG_IMAGES_PATHS[cat])) {
+          const bgKey = key as keyof BgType[T];
+          
           const img = new Image();
           img.src = path;
-          await new Promise((resolve) => {
-            img.onload = () => { newImages[cat][key] = img; resolve(); };
+          await new Promise<void>((resolve) => {
+            img.onload = () => {
+              const targetCategory = newImages[cat] as Partial<Record<keyof BgType[T], HTMLImageElement>>;
+
+              targetCategory[bgKey] = img;
+              resolve();
+            };
             img.onerror = () => { resolve(); }; // 失敗しても続行
           });
         }
+      };
+
+      const categories: CategoryType[] = ['normal', 'hard'];
+
+      for (const cat of categories) {
+        await preloadCategory(cat);
       }
+
       setLoadedImages(newImages);
     };
     loadAllImages();
@@ -160,7 +181,7 @@ export default function JoyaNoKane() {
   const lvIdx = (isHardMode ? hardLevels : normalLevels).indexOf(info);
 
   const [isSoundEnabled, setIsSoundEnabled] = useState(true); // サウンド設定ステータス
-  const audioPoolRef = useRef([]);
+  const audioPoolRef = useRef<HTMLAudioElement[]>([]);
   const MAX_CONCURRENT_SOUNDS = 3;
 
   // --- サウンド切り替え関数 ---
@@ -193,7 +214,7 @@ export default function JoyaNoKane() {
 
     // 1. すでに3つ再生されている場合は、最も古い音を停止して削除
     if (audioPoolRef.current.length >= MAX_CONCURRENT_SOUNDS) {
-      const oldestAudio = audioPoolRef.current.shift();
+      const oldestAudio = audioPoolRef.current.shift()!;
       oldestAudio.pause();
       oldestAudio.src = ""; // メモリ解放を促進
     }
@@ -229,7 +250,7 @@ export default function JoyaNoKane() {
     };
   }, []);
 
-  const onMouseMove = (e) => {
+  const onMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isPaused) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -289,7 +310,7 @@ export default function JoyaNoKane() {
 
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext('2d');
-      if (ctx) {
+      if (ctx && canvas) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         let currentBgImg = null;
         let fallbackGradient = ctx.createLinearGradient(0, 0, 0, 600);
@@ -354,7 +375,11 @@ export default function JoyaNoKane() {
       animationRef.current = requestAnimationFrame(animate);
     };
     animationRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationRef.current);
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
   }, [strikeCount, isPaused, isHardMode, lvIdx, info.multiplier, loadedImages, info.message, info.detail]);
 
   const shareOnX = () => {
@@ -414,7 +439,7 @@ playground.neer-engineer.com
             【到達済みレベル】
           </p>
           <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'center', maxWidth: '800px' }}>
-            {levels.map((lv, idx) => {
+            {levels.map((_lv, idx) => {
               const isLocked = idx > maxReachedLevels[currentModeKey];
               const isSelected = idx === currentLevelIdx;
               return (

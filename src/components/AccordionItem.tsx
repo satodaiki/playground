@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 // --- アコーディオン用コンポーネント ---
-export default ({ title, children }) => {
+export default ({ title, children }: {title: string, children: React.ReactElement | React.ReactElement[]}) => {
   const [isOpen, setIsOpen] = useState(false);
   return (
     <div style={{ borderBottom: '1px solid #1e293b', width: '100%', maxWidth: '800px' }}>
