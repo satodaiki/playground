@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "__correct_build": "tsc -b && vite build",
-    "build": "vite build",
+    "build": "tsc -b && vite build",
+    "__build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "deploy": "npm run build && aws s3 sync ./dist s3://joyanokane-playground-neer-engineer.com-bucket --delete && aws cloudfront create-invalidation --distribution-id E16HB80E2B9UKF --paths \"/*\""
