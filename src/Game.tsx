@@ -20,7 +20,7 @@ const BG_IMAGES_PATHS = {
 };
 
 export default function JoyaNoKane() {
-  const canvasRef = useRef(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [strikeCount, setStrikeCount] = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -102,20 +102,61 @@ export default function JoyaNoKane() {
     { threshold: 1080000, multiplier: 1080, label: "Lv.MAX 究極の虚無", message: "♾️ 零 の 凱 旋 ♾️", detail: "何もかもを破壊し尽くし、唯一無二の「無」へと至った。" },
   ];
 
-  const getLevelInfo = (count) => {
-    const list = isHardMode ? hardLevels : normalLevels;
-    let current = list[0];
-    let next = null;
-    for (let i = 0; i < list.length; i++) {
-      if (count >= list[i].threshold) {
-        current = list[i];
-        next = list[i + 1] || null;
+  // 到達済みの最大レベルインデックスを管理 (最初は 0)
+  // モード別に最大到達レベルを管理
+  const [maxReachedLevels, setMaxReachedLevels] = useState({
+    normal: 0,
+    hard: 0
+  });
+  // 現在表示・適用しているレベルインデックス
+  const [currentLevelIdx, setCurrentLevelIdx] = useState(0);
+  
+  const levels = isHardMode ? hardLevels : normalLevels;
+  const currentModeKey = isHardMode ? 'hard' : 'normal';
+
+  // --- スコア更新時の自動レベルアップ処理 ---
+  useEffect(() => {
+    let targetIdx = 0;
+    for (let i = 0; i < levels.length; i++) {
+      if (strikeCount >= levels[i].threshold) {
+        targetIdx = i;
       } else break;
     }
-    return { current, next };
+
+    // 現在のモードの最大到達レベルをチェック・更新
+    if (targetIdx > maxReachedLevels[currentModeKey]) {
+      setMaxReachedLevels(prev => ({
+        ...prev,
+        [currentModeKey]: targetIdx
+      }));
+      // 新しいレベルに到達したら自動で表示も切り替える
+      setCurrentLevelIdx(targetIdx);
+    }
+  }, [strikeCount, isHardMode, levels, maxReachedLevels, currentModeKey]);
+
+  // --- モード切替時の処理 ---
+  const toggleHardMode = () => {
+    const nextMode = !isHardMode;
+    setIsHardMode(nextMode);
+    setStrikeCount(0); // モード切替でスコアはリセット
+    setIsPaused(false);
+    setShowConfirm(false);
+    
+    // 切り替え先のモードでの最大到達レベルに表示を合わせる
+    const nextModeKey = nextMode ? 'hard' : 'normal';
+    setCurrentLevelIdx(maxReachedLevels[nextModeKey]);
   };
 
-  const { current: info, next: nextLevel } = getLevelInfo(strikeCount);
+  // --- レベルを手動で変更する関数 ---
+  const changeLevel = (idx: number) => {
+    // 現在のモードの最大到達範囲内でのみ変更可能
+    if (idx >= 0 && idx <= maxReachedLevels[currentModeKey]) {
+      setCurrentLevelIdx(idx);
+    }
+  };
+
+  const info = levels[currentLevelIdx];
+  const nextLevel = levels[currentLevelIdx + 1] || null;
   const lvIdx = (isHardMode ? hardLevels : normalLevels).indexOf(info);
 
   const [isSoundEnabled, setIsSoundEnabled] = useState(true); // サウンド設定ステータス
@@ -138,7 +179,7 @@ export default function JoyaNoKane() {
   };
 
   // --- 音声再生関数 ---
-  const playBellSound = (idx: number) => {
+  const playBellSound = () => {
     if (!isSoundEnabled) {
       if (audioPoolRef.current.length > 0) {
         audioPoolRef.current.forEach((audio: HTMLAudioElement) => {
@@ -159,7 +200,9 @@ export default function JoyaNoKane() {
 
     // 2. 新しい音声インスタンスの作成
     const audio = new Audio(bellSoundFile);
-    const rate = isHardMode ? Math.max(0.4, 0.8 - (idx * 0.03)) : Math.max(0.6, 1.0 - (idx * 0.025));
+    const rate = isHardMode 
+      ? Math.max(0.4, 0.8 - (currentLevelIdx * 0.03))
+      : Math.max(0.6, 1.0 - (currentLevelIdx * 0.025));
     audio.playbackRate = rate;
     
     // 音割れ防止のため、個々の音量をわずかに下げる（任意）
@@ -235,7 +278,7 @@ export default function JoyaNoKane() {
 
         if (hitDetected) {
           lastStrikeTimeRef.current = now;
-          playBellSound(lvIdx);
+          playBellSound();
           let nextVal = strikeCount + info.multiplier;
           if (!isHardMode && nextVal >= 1080000) setHasReachedMaxLevel(true);
           if (strikeCount < 108 && nextVal >= 108) {
@@ -353,15 +396,52 @@ playground.neer-engineer.com
         </button>
         
         <button onClick={() => { setStrikeCount(0); setIsPaused(false); setShowConfirm(false); setHasReachedMaxLevel(false); setIsHardMode(false); }} style={{ backgroundColor: '#0f172a', color: '#64748b', border: '1px solid #1e293b', padding: '0.5rem 1rem', borderRadius: '999px', fontSize: '0.75rem', cursor: 'pointer' }}>修行をやり直す</button>
+        {/* ハードモードボタン */}
         {hasReachedMaxLevel && (
-          <button onClick={() => { setIsHardMode(!isHardMode); setStrikeCount(0); }} style={{ backgroundColor: isHardMode ? '#7f1d1d' : '#065f46', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }}>
+          <button
+            onClick={toggleHardMode}
+            style={{ backgroundColor: isHardMode ? '#7f1d1d' : '#065f46', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }}
+          >
             {isHardMode ? '通常モードへ戻る' : '修羅の道へ（ハード解禁）'}
           </button>
         )}
       </div>
+      
+      {/* レベル選択パネル */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ marginBottom: '15px', textAlign: 'center' }}>
+          <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '8px' }}>
+            【到達済みレベル】
+          </p>
+          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'center', maxWidth: '800px' }}>
+            {levels.map((lv, idx) => {
+              const isLocked = idx > maxReachedLevels[currentModeKey];
+              const isSelected = idx === currentLevelIdx;
+              return (
+                <button
+                  key={idx}
+                  disabled={isLocked}
+                  onClick={() => changeLevel(idx)}
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: '4px',
+                    border: '1px solid #333',
+                    background: isSelected ? (isHardMode ? '#7f1d1d' : '#1e3a8a') : (isLocked ? '#000' : '#111'),
+                    color: isLocked ? '#333' : '#fff',
+                    cursor: isLocked ? 'not-allowed' : 'pointer',
+                    fontSize: '0.7rem'
+                  }}
+                >
+                  {isLocked ? '????' : `Lv.${idx}`}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
       <div style={{ position: 'relative' }}>
-        <canvas ref={canvasRef} width={800} height={600} onMouseMove={onMouseMove} onClick={() => { if(strikeCount === 0) playBellSound(0); }} style={{ borderRadius: '1.5rem', border: `1px solid ${isHardMode ? '#450a0a' : '#1e293b'}`, cursor: isPaused ? 'default' : 'none' }} />
+        <canvas ref={canvasRef} width={800} height={600} onMouseMove={onMouseMove} onClick={playBellSound} style={{ borderRadius: '1.5rem', border: `1px solid ${isHardMode ? '#450a0a' : '#1e293b'}`, cursor: isPaused ? 'default' : 'none' }} />
         {showConfirm && (
           <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '1.5rem', zIndex: 10 }}>
             <div style={{ backgroundColor: '#0f172a', border: `1px solid ${isHardMode ? '#ef4444' : '#eab308'}`, padding: '2.5rem', borderRadius: '1rem', textAlign: 'center', maxWidth: '350px' }}>
