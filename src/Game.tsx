@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import AccordionItem from './components/AccordionItem';
 import bellSoundFile from './assets/bonsho.mp3'; 
 
 const BG_IMAGES_PATHS = {
@@ -289,7 +290,7 @@ export default function JoyaNoKane() {
         ctx.shadowBlur = 0;
         ctx.fillStyle = isHardMode ? '#ef4444' : (isMax ? `hsl(${hue}, 100%, 85%)` : '#f8fafc'); 
         ctx.font = 'bold 22px serif'; ctx.textAlign = 'left';
-        ctx.fillText(`${isHardMode ? '砕いた業' : '除いた煩悩'}: ${strikeCount.toLocaleString()}`, 30, 80);
+        ctx.fillText(`除いた煩悩: ${strikeCount.toLocaleString()}`, 30, 80);
         
         ctx.fillStyle = isHardMode ? '#b91c1c' : (isMax ? `hsl(${hue}, 100%, 75%)` : '#38bdf8'); 
         ctx.font = 'bold 24px serif';
@@ -335,6 +336,9 @@ playground.neer-engineer.com
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: 'black', color: 'white', fontFamily: 'serif' }}>
+      <div style={{ marginTop: '1rem', marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>🔔除夜の鐘🔔</h1>
+      </div>
       <div style={{ marginTop: '1rem', marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
         {/* サウンドON/OFFボタン */}
         <button
@@ -386,6 +390,37 @@ playground.neer-engineer.com
       <p style={{ marginTop: '1rem', color: '#475569', fontSize: '0.875rem' }}>
         <a href="https://otologic.jp">OtoLogic</a>提供の音声素材を使用しています。
       </p>
+
+      {/* --- 解説セクション --- */}
+      <div style={{ marginTop: '4rem', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '5rem' }}>
+        <h3 style={{ color: '#fbbf24', marginBottom: '2rem' }}>除夜の鐘の豆知識</h3>
+
+        <AccordionItem title="除夜の鐘とは？">
+          <p>「除夜」とは大晦日の夜のことです。「除」には古いものを捨てて新しいものに移るという意味があり、旧年を除く夜、つまり一年の最後の夜を指します。</p>
+          <p>この夜にお寺で鳴らされる鐘が「除夜の鐘」であり、日本の冬の風物詩として古くから親しまれています。</p>
+        </AccordionItem>
+
+        <AccordionItem title="除夜の鐘の歴史">
+          <p>起源は中国の宋時代に遡ると言われています。当初は禅寺で鬼払い（邪気払い）のために毎月の末日に行われていましたが、次第に大晦日だけの行事となりました。</p>
+          <p>日本には鎌倉時代に禅宗とともに伝わりました。室町時代から仏教行事として一般に広まり、江戸時代には庶民の間でも大晦日に欠かせない習慣として定着しました。</p>
+        </AccordionItem>
+
+        <AccordionItem title="除夜の鐘の由来">
+          <p>最も一般的な説は「人間の煩悩の数」に由来するものです。仏教では人間に108つの煩悩（心を惑わす欲望や怒りなど）があると考えられており、鐘を一回突くごとに、その煩悩を一つずつ打ち消していくという意味が込められています。</p>
+          <p>多くの場合、古い年のうちに107回を突き、最後の1回を新年（1月1日）になってから突きます。これは「新年に煩悩に惑わされないように」という願いからです。</p>
+        </AccordionItem>
+
+        <AccordionItem title="使用する道具の名称">
+          <p>鐘のことは正しくは梵鐘（ぼんしょう）、梵鐘を突く木の棒のことを撞木（しゅもく）といいます。</p>
+        </AccordionItem>
+
+        <AccordionItem title="ゆく年くる年の放送">
+          <p>大晦日の定番番組といえば「ゆく年くる年」ですが、その放送開始はなんと1927年のこと！</p>
+          <p>最初の放送ではただスタジオで鐘を鳴らすだけだったらしいです。</p>
+          <p>お寺からの中継はその二年後の1929年からで、浅草寺で中継されたそうです。</p>
+          <p>現在では全国各地のお寺から中継され、多くの人々が年越しの瞬間を鐘の音とともに迎えています。</p>
+        </AccordionItem>
+      </div>
     </div>
   );
 }
