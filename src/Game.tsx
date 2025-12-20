@@ -19,7 +19,7 @@ const BG_IMAGES_PATHS = {
   }
 };
 
-export default function JoyaNoKane() {
+export default () => {
   type BgType = typeof BG_IMAGES_PATHS;
   type CategoryType = keyof BgType;
 
