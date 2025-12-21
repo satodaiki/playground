@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import AccordionItem from './components/AccordionItem';
-import bellSoundFile from './assets/bonsho.mp3'; 
+import AccordionItem from '@/components/AccordionItem';
+import bellSoundFile from '@/assets/bonsho.mp3'; 
 
 const BG_IMAGES_PATHS = {
   normal: {
