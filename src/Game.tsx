@@ -424,6 +424,16 @@ playground.neer-engineer.com
     window.open(shareUrl, '_blank');
   };
 
+  const commonButtonStyle = {
+    padding: '12px 8px', // 高さを出して押しやすく（44px以上の高さを確保）
+    borderRadius: '8px',
+    fontSize: '0.9rem',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: '0.2s',
+    border: '1px solid #333'
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: 'black', color: 'white', fontFamily: 'serif' }}>
       <div style={{ marginTop: '1rem', marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
@@ -433,7 +443,8 @@ playground.neer-engineer.com
         {/* サウンドON/OFFボタン */}
         <button
           onClick={toggleSound}
-          style={{ 
+          style={{
+            ...commonButtonStyle,
             padding: '8px 16px', borderRadius: '20px', border: '1px solid #333', 
             background: isSoundEnabled ? '#1e293b' : '#450a0a', 
             color: '#fff', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '5px' 
@@ -442,25 +453,57 @@ playground.neer-engineer.com
           {isSoundEnabled ? '🔊 ON' : '🔇 OFF'}
         </button>
         
-        <button onClick={() => { setStrikeCount(0); setIsPaused(false); setShowConfirm(false); setHasReachedMaxLevel(false); setIsHardMode(false); }} style={{ backgroundColor: '#0f172a', color: '#64748b', border: '1px solid #1e293b', padding: '0.5rem 1rem', borderRadius: '999px', fontSize: '0.75rem', cursor: 'pointer' }}>修行をやり直す</button>
+        <button 
+          onClick={() => { setStrikeCount(0); setIsPaused(false); setShowConfirm(false); setHasReachedMaxLevel(false); setIsHardMode(false); }} 
+          style={{
+            ...commonButtonStyle,
+            backgroundColor: '#0f172a', 
+            color: '#64748b', 
+            border: '1px solid #1e293b', 
+            padding: '0.5rem 1rem', 
+            borderRadius: '999px', 
+            fontSize: '0.75rem', 
+            cursor: 'pointer' 
+          }}
+        >修行をやり直す</button>
+
         {/* ハードモードボタン */}
         {hasReachedMaxLevel && (
           <button
             onClick={toggleHardMode}
-            style={{ backgroundColor: isHardMode ? '#7f1d1d' : '#065f46', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }}
+            style={{
+              ...commonButtonStyle,
+              backgroundColor: isHardMode ? '#7f1d1d' : '#065f46', 
+              color: 'white', 
+              border: 'none', 
+              padding: '0.5rem 1rem', 
+              borderRadius: '999px', 
+              fontSize: '0.75rem', 
+              fontWeight: 'bold', 
+              cursor: 'pointer' 
+            }}
           >
             {isHardMode ? '通常モードへ戻る' : '修羅の道へ（ハード解禁）'}
           </button>
         )}
       </div>
       
-      {/* レベル選択パネル */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div style={{ marginBottom: '15px', textAlign: 'center' }}>
+        {/* レベル選択パネル */}
+        <div
+          style={{ marginBottom: '20px', width: '100%', textAlign: 'center' }}
+        >
           <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '8px' }}>
             【到達済みレベル】
           </p>
-          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'center', maxWidth: '800px' }}>
+          <div
+            style={{ 
+              display: 'flex', 
+              gap: '5px', 
+              flexWrap: 'wrap', 
+              justifyContent: 'center', 
+              maxWidth: '800px' 
+            }}
+          >
             {levels.map((_lv, idx) => {
               const isLocked = idx > maxReachedLevels[currentModeKey];
               const isSelected = idx === currentLevelIdx;
@@ -470,13 +513,15 @@ playground.neer-engineer.com
                   disabled={isLocked}
                   onClick={() => changeLevel(idx)}
                   style={{
+                    ...commonButtonStyle,
                     padding: '5px 10px',
                     borderRadius: '4px',
                     border: '1px solid #333',
                     background: isSelected ? (isHardMode ? '#7f1d1d' : '#1e3a8a') : (isLocked ? '#000' : '#111'),
                     color: isLocked ? '#333' : '#fff',
                     cursor: isLocked ? 'not-allowed' : 'pointer',
-                    fontSize: '0.7rem'
+                    fontSize: '0.7rem',
+                    minHeight: '48px' // 指のサイズに合わせる
                   }}
                 >
                   {isLocked ? '????' : `Lv.${idx}`}
@@ -485,7 +530,6 @@ playground.neer-engineer.com
             })}
           </div>
         </div>
-      </div>
 
       <div style={{ position: 'relative' }}>
         <canvas 
