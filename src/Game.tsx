@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import AccordionItem from './components/AccordionItem';
 import bellSoundFile from './assets/bonsho.mp3'; 
 
@@ -259,6 +259,28 @@ export default () => {
     mousePosRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
   };
 
+  // 座標取得ロジックの共通化
+  const handleTouch = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (isPaused) return;
+    // スクロールなどのデフォルト動作を防止
+    if (e.cancelable) e.preventDefault();
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+
+    // 表示サイズと本来の解像度(800x600)の比率を計算
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    prevMousePosRef.current = { ...mousePosRef.current };
+    mousePosRef.current = {
+      x: (touch.clientX - rect.left) * scaleX,
+      y: (touch.clientY - rect.top) * scaleY
+    };
+  };
+
   useEffect(() => {
     const animate = () => {
       if (isPaused) return;
@@ -466,7 +488,25 @@ playground.neer-engineer.com
       </div>
 
       <div style={{ position: 'relative' }}>
-        <canvas ref={canvasRef} width={800} height={600} onMouseMove={onMouseMove} onClick={playBellSound} style={{ borderRadius: '1.5rem', border: `1px solid ${isHardMode ? '#450a0a' : '#1e293b'}`, cursor: isPaused ? 'default' : 'none' }} />
+        <canvas 
+          ref={canvasRef}
+          width={800} 
+          height={600} 
+          onMouseMove={onMouseMove} 
+          onClick={playBellSound}
+          // --- スマホ用 ---
+          onTouchStart={handleTouch}
+          onTouchMove={handleTouch}
+          style={{
+            width: '100%',        // 親要素に合わせる
+            maxWidth: '800px',    // 最大サイズは維持
+            height: 'auto',       // アスペクト比を維持
+            touchAction: 'none',  // ブラウザのスクロールやズームを無効化
+            borderRadius: '1.5rem',
+            border: `1px solid ${isHardMode ? '#450a0a' : '#1e293b'}`, 
+            cursor: isPaused ? 'default' : 'none' 
+          }}
+        />
         {showConfirm && (
           <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '1.5rem', zIndex: 10 }}>
             <div style={{ backgroundColor: '#0f172a', border: `1px solid ${isHardMode ? '#ef4444' : '#eab308'}`, padding: '2.5rem', borderRadius: '1rem', textAlign: 'center', maxWidth: '350px' }}>
