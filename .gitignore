@@ -1,3 +1,6 @@
+# Syncthing
+.stfolder
+
 # Logs
 logs
 *.log

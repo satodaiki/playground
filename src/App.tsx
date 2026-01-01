@@ -1,4 +1,6 @@
 import JoyaNoKane from '@/components/pages/JoyaNoKane'
+import WasmTerminal from '@/components/pages/WasmTerminal'
+import Tetlis from '@/components/pages/Tetlis';
 import '@/App.css'
 
 import { Link, Route, Switch } from 'wouter';
@@ -11,6 +13,19 @@ const PROJECTS = [
     description: '大晦日に作ったアプリ。ついてついてつきまくれ！目指せ108万回！',
     path: '/joya'
   },
+  // {
+  //   id: 'tetlis',
+  //   title: 'テトリス',
+  //   description: '大晦日といえば大掃除、大掃除といえば片付け、片付けといえばテトリス（？）ということで作りました。',
+  //   path: '/tetlis'
+  // },
+  // 冷静に考えたらそんなに面白くなさそう
+  // {
+  //   id: 'wasm-terminal',
+  //   title: 'Wasm Terminal',
+  //   description: 'Web上でDockerコンテナを実行するためのターミナル。ぶっ壊してしまえ！！！',
+  //   path: '/wasm-terminal'
+  // },
   {
     id: 'coming-soon',
     title: '次の作品を制作中...',
@@ -64,6 +79,8 @@ export default function App() {
       <Switch>
         <Route path="/" component={TopPage} />
         <Route path="/joya" component={JoyaNoKane} />
+        {/* <Route path="/wasm-terminal" component={WasmTerminal} /> */}
+        {/* <Route path="/tetlis" component={Tetlis} /> */}
         {/* 404ページ */}
         <Route>
           <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white text-2xl font-bold">
