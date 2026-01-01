@@ -1,6 +1,8 @@
 import JoyaNoKane from '@/components/pages/JoyaNoKane'
-import WasmTerminal from '@/components/pages/WasmTerminal'
-import Tetlis from '@/components/pages/Tetlis';
+// import WasmTerminal from '@/components/pages/WasmTerminal'
+// import Tetlis from '@/components/pages/Tetlis';
+import Chat from '@/components/pages/Chat';
+import Insider from '@/components/pages/Insider';
 import '@/App.css'
 
 import { Link, Route, Switch } from 'wouter';
@@ -13,6 +15,18 @@ const PROJECTS = [
     description: '大晦日に作ったアプリ。ついてついてつきまくれ！目指せ108万回！',
     path: '/joya'
   },
+  {
+    id: 'chat',
+    title: 'チャット',
+    description: 'Peer.jsで作ったP2Pのリアルタイムチャットアプリ',
+    path: '/chat'
+  },
+  // {
+  //   id: 'insider',
+  //   title: 'インサイダー',
+  //   description: '好きなボドゲの一つ、インサイダーゲームをPeer.jsで実装しました。',
+  //   path: '/insider'
+  // },
   // {
   //   id: 'tetlis',
   //   title: 'テトリス',
@@ -79,6 +93,8 @@ export default function App() {
       <Switch>
         <Route path="/" component={TopPage} />
         <Route path="/joya" component={JoyaNoKane} />
+        <Route path="/chat" component={Chat} />
+        {/* <Route path="/insider" component={Insider} /> */}
         {/* <Route path="/wasm-terminal" component={WasmTerminal} /> */}
         {/* <Route path="/tetlis" component={Tetlis} /> */}
         {/* 404ページ */}
