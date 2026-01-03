@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Peer from 'peerjs';
+import type { DataConnection } from 'peerjs';
 
 const ChatApp = () => {
   const [myId, setMyId] = useState('');
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<{ sender?: string; text: string; system?: boolean }[]>([]);
   const [messageInput, setMessageInput] = useState('');
-  const [isConnected, setIsConnected] = useState(false);
+  const [conns, setConns] = useState<{ [key: string]: DataConnection }>({}); // 接続中の全Peerを管理 {peerId: connection}
   const [copyStatus, setCopyStatus] = useState('URLをコピー');
 
-  const peerRef = useRef(null);
-  const connRef = useRef(null);
-  const scrollRef = useRef(null);
+  const peerRef = useRef<Peer>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const peer = new Peer();
@@ -26,9 +26,8 @@ const ChatApp = () => {
       }
     });
 
-    peer.on('connection', (connection) => {
-      connRef.current = connection;
-      setupConnection();
+    peer.on('connection', (conn) => {
+      setupConnection(conn);
     });
 
     return () => peer.destroy();
@@ -41,34 +40,44 @@ const ChatApp = () => {
     }
   }, [messages]);
 
-  const setupConnection = () => {
-    const conn = connRef.current;
+  const setupConnection = (conn: DataConnection) => {
     conn.on('open', () => {
-      setIsConnected(true);
-      setMessages(prev => [...prev, { system: true, text: '接続されました' }]);
+      setConns(prev => ({ ...prev, [conn.peer]: conn }));
+      setMessages(prev => [...prev, { system: true, text: `${conn.peer.substring(0,5)}... が入室しました` }]);
     });
     conn.on('data', (data) => {
-      setMessages(prev => [...prev, { sender: '相手', text: data }]);
+      if (typeof data === 'string') {
+        // 複数人でメッセージやり取りをできるように
+        setMessages(prev => [...prev, { sender: conn.peer.substring(0,5), text: data }]);
+      }
     });
     conn.on('close', () => {
-      setIsConnected(false);
-      setMessages(prev => [...prev, { system: true, text: '切断されました' }]);
+      setMessages(prev => [...prev, { system: true, text: '誰かが退室しました' }]);
+      setConns(prev => {
+        const newConns = { ...prev };
+        delete newConns[conn.peer];
+        return newConns;
+      });
     });
   };
 
-  const connectToPeer = (id) => {
-    if (!id) return;
-    connRef.current = peerRef.current.connect(id);
-    setupConnection();
+  const connectToPeer = (id: string) => {
+    if (conns[id] || !peerRef.current) return; // 接続済みならスキップ
+    const conn = peerRef.current.connect(id);
+    setupConnection(conn);
   };
 
   const sendMessage = (e) => {
     e.preventDefault();
-    if (messageInput && connRef.current?.open) {
-      connRef.current.send(messageInput);
-      setMessages(prev => [...prev, { sender: '自分', text: messageInput }]);
-      setMessageInput('');
-    }
+  
+    // 接続している全員に送信（ブロードキャスト）
+    Object.values(conns).forEach(conn => {
+      if (conn.open) {
+        conn.send(messageInput);
+      }
+    });
+    setMessages(prev => [...prev, { sender: '自分', text: messageInput }]);
+    setMessageInput('');
   };
 
   // 招待用URLをコピーする関数
@@ -81,12 +90,13 @@ const ChatApp = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50 p-4">
-      <div className="max-w-md mx-auto w-full bg-white shadow-2xl rounded-2xl flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-screen bg-slate-900 p-4 text-slate-100">
+      <div className="max-w-2xl mx-auto w-full flex flex-col h-full bg-slate-800 rounded-xl shadow-2xl overflow-hidden">
         
         {/* ヘッダーセクション */}
         <div className="bg-slate-800 p-5 text-white">
           <h1 className="text-xl font-bold mb-2 text-center text-indigo-400">P2P Chat</h1>
+          <p className="text-[10px] text-slate-400">参加人数: {Object.keys(conns).length + 1}名</p>
           <div className="bg-slate-700 rounded-lg p-3 flex flex-col gap-2">
             <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Your ID</div>
             <div className="text-sm font-mono break-all text-indigo-200">{myId || '発行中...'}</div>
@@ -103,54 +113,40 @@ const ChatApp = () => {
         </div>
 
         {/* チャットログ */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
-          {messages.length === 0 && (
-            <p className="text-center text-slate-400 text-sm mt-10">
-              招待URLを相手に送って接続してください
-            </p>
-          )}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-900/50">
           {messages.map((msg, i) => (
             <div key={i} className={`flex flex-col ${msg.sender === '自分' ? 'items-end' : 'items-start'}`}>
               {msg.system ? (
-                <div className="w-full text-center py-2 text-[10px] text-slate-400 uppercase tracking-widest">{msg.text}</div>
+                <span className="text-[10px] text-slate-500 italic mx-auto my-2 uppercase tracking-widest">{msg.text}</span>
               ) : (
-                <div className={`group flex flex-col ${msg.sender === '自分' ? 'items-end' : 'items-start'}`}>
-                  <span className="text-[10px] text-slate-500 mb-1 px-1">{msg.sender}</span>
-                  <div className={`px-4 py-2 rounded-2xl text-sm shadow-sm max-w-[90%] break-all ${
-                    msg.sender === '自分' 
-                      ? 'bg-indigo-600 text-white rounded-tr-none' 
-                      : 'bg-white text-slate-800 rounded-tl-none border border-slate-200'
+                <>
+                  <span className="text-[10px] text-slate-400 mb-1 ml-1">{msg.sender}</span>
+                  <div className={`px-4 py-2 rounded-2xl text-sm max-w-[80%] break-all ${
+                    msg.sender === '自分' ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-700 text-slate-100 rounded-tl-none border border-slate-600'
                   }`}>
                     {msg.text}
                   </div>
-                </div>
+                </>
               )}
             </div>
           ))}
         </div>
 
-        {/* メッセージ送信エリア */}
-        <div className="p-4 bg-white border-t border-slate-100">
-          <form onSubmit={sendMessage} className="flex gap-2 items-center">
-            <input 
-              type="text" 
-              placeholder={isConnected ? "メッセージを入力..." : "接続を待っています..."}
-              className="flex-1 text-black bg-slate-100 border-none rounded-full px-5 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none disabled:opacity-50"
-              value={messageInput}
-              onChange={(e) => setMessageInput(e.target.value)}
-              disabled={!isConnected}
-            />
-            <button 
-              type="submit"
-              disabled={!isConnected || !messageInput}
-              className="bg-indigo-600 text-white w-12 h-12 flex items-center justify-center rounded-full hover:bg-indigo-500 transition-all disabled:bg-slate-300 shadow-lg"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
-              </svg>
-            </button>
-          </form>
-        </div>
+        {/* 入力エリア */}
+        <form onSubmit={sendMessage} className="p-4 bg-slate-800 border-t border-slate-700 flex gap-2">
+          <input 
+            type="text" 
+            className="flex-1 bg-slate-700 border-none rounded-lg px-4 py-3 text-sm text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+            placeholder="全員にメッセージを送信..."
+            value={messageInput}
+            onChange={(e) => setMessageInput(e.target.value)}
+          />
+          <button type="submit" className="bg-indigo-600 p-3 rounded-lg hover:bg-indigo-500 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 fill-current" viewBox="0 0 20 20">
+              <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+            </svg>
+          </button>
+        </form>
       </div>
     </div>
   );
