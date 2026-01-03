@@ -46,27 +46,36 @@ const ChatApp = () => {
       // 接続リストに追加
       addConnection(conn);
       setMessages(prev => [...prev, { system: true, text: `${conn.peer.substring(0,5)}... が入室しました` }]);
+
+      // 【リーダーの役割】新しい人が来たら、現在接続中の他の全員のIDを教える
+      const otherPeerIds = Object.keys(connsRef.current).filter(id => id !== conn.peer);
+      if (otherPeerIds.length > 0) {
+        conn.send({ type: 'member-list', ids: otherPeerIds });
+      }
     });
-    conn.on('data', (data: { type: string; sender: string; text: string }) => {
+    conn.on('data', (data: { type: string; sender?: string; text?: string, ids?: string[] }) => {
       if (data.type === 'chat') {
-        // 複数人でメッセージやり取りをできるように
-        setMessages(prev => [...prev, { sender: data.sender, text: data.text }]);
+        // メッセージの受信
+        setMessages(prev => [...prev, { sender: data.sender!, text: data.text! }]);
+      } else if (data.type === 'member-list') {
+        // 【新人の役割】リーダーから貰った名簿をもとに、全員に自分から接続する
+        data.ids!.forEach(id => {
+          if (!connsRef.current[id]) {
+            connectToPeer(id);
+          }
+        });
       }
     });
     conn.on('close', () => {
-      removeConnection(conn.peer);
+      delete connsRef.current[conn.peer];
+      setConns({ ...connsRef.current });
+      setMessages(prev => [...prev, { system: true, text: "誰かが退室しました" }]);
     });
   };
 
   const addConnection = (conn: DataConnection) => {
     connsRef.current[conn.peer] = conn;
     setConns({ ...connsRef.current });
-  };
-
-  const removeConnection = (id: string) => {
-    delete connsRef.current[id];
-    setConns({ ...connsRef.current });
-    setMessages(prev => [...prev, { system: true, text: "誰かが退室しました" }]);
   };
 
   const connectToPeer = (id: string) => {
