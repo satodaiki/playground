@@ -34,6 +34,23 @@ const ChatApp = () => {
     return () => peer.destroy();
   }, []);
 
+  // --- タブを閉じる時に明示的に切断するハンドラ ---
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      Object.values(connsRef.current).forEach(conn => {
+        conn.send({ type: 'leave', peerId: myId }); // 退出を通知
+        conn.close();
+      });
+      peerRef.current?.destroy();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      peerRef.current?.destroy();
+    };
+  }, []);
+
   // 常に最新メッセージまでスクロール
   useEffect(() => {
     if (scrollRef.current) {
@@ -42,6 +59,22 @@ const ChatApp = () => {
   }, [messages]);
 
   const setupConnection = (conn: DataConnection) => {
+    // 定期的な接続チェック
+    const checkInterval = setInterval(() => {
+      if (!conn.open) {
+        cleanup();
+      }
+    }, 5000);
+
+    const cleanup = () => {
+      clearInterval(checkInterval);
+      if (connsRef.current[conn.peer]) {
+        delete connsRef.current[conn.peer];
+        setConns({ ...connsRef.current });
+        setMessages(prev => [...prev, { system: true, text: "誰かが退室しました" }]);
+      }
+    };
+
     conn.on('open', () => {
       // 接続リストに追加
       addConnection(conn);
@@ -64,13 +97,14 @@ const ChatApp = () => {
             connectToPeer(id);
           }
         });
+      } else if (data.type === 'leave') {
+        // 明示的な退出通知を受け取った場合
+        cleanup();
+        conn.close();
       }
     });
-    conn.on('close', () => {
-      delete connsRef.current[conn.peer];
-      setConns({ ...connsRef.current });
-      setMessages(prev => [...prev, { system: true, text: "誰かが退室しました" }]);
-    });
+    conn.on('close', cleanup);
+    conn.on('error', cleanup);
   };
 
   const addConnection = (conn: DataConnection) => {
