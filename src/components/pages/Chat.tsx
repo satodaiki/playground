@@ -2,27 +2,33 @@ import { useState, useEffect, useRef } from 'react';
 import Peer from 'peerjs';
 import type { DataConnection } from 'peerjs';
 
+import { randomName } from '@/utils/string';
+
 const ChatApp = () => {
   const [myId, setMyId] = useState('');
-  const [messages, setMessages] = useState<{ sender?: string; text: string; system?: boolean }[]>([]);
+  const [myName, setMyName] = useState(''); // 自分の表示名
+  const [tempName, setTempName] = useState(''); // 入力中の名前
+  const [isNameSet, setIsNameSet] = useState(false);
+  
+  const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
-  const [conns, setConns] = useState<{ [key: string]: DataConnection }>({}); // 接続中の全Peerを管理 {peerId: connection}
+  const [peers, setPeers] = useState({}); // { peerId: { conn: DataConnection, name: string } }
   const [copyStatus, setCopyStatus] = useState('URLをコピー');
-
-  const peerRef = useRef<Peer>(null);
-  const connsRef = useRef<{ [key: string]: DataConnection }>({}); // レンダリングを跨いで最新の接続状態を保持
-  const scrollRef = useRef<HTMLDivElement>(null);
+  
+  const peerRef = useRef(null);
+  const peersRef = useRef({}); // 状態管理用
+  const scrollRef = useRef(null);
 
   useEffect(() => {
+    if (!isNameSet) return;
+
     const peer = new Peer();
     peerRef.current = peer;
 
     peer.on('open', (id) => {
       setMyId(id);
-      
-      // URLのハッシュ（#）からIDを取得
-      const targetId = window.location.hash.substring(1); // #を除いた文字列を取得
-      if (targetId) {
+      const targetId = window.location.hash.substring(1);
+      if (targetId && targetId !== id) {
         connectToPeer(targetId);
       }
     });
@@ -31,14 +37,9 @@ const ChatApp = () => {
       setupConnection(conn);
     });
 
-    return () => peer.destroy();
-  }, []);
-
-  // --- タブを閉じる時に明示的に切断するハンドラ ---
-  useEffect(() => {
     const handleBeforeUnload = () => {
-      Object.values(connsRef.current).forEach(conn => {
-        conn.send({ type: 'leave', peerId: myId }); // 退出を通知
+      Object.values(peersRef.current).forEach(({ conn }) => {
+        conn.send({ type: 'leave', senderName: myName });
         conn.close();
       });
       peerRef.current?.destroy();
@@ -49,71 +50,59 @@ const ChatApp = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       peerRef.current?.destroy();
     };
-  }, []);
+  }, [isNameSet]);
 
-  // 常に最新メッセージまでスクロール
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
-  const setupConnection = (conn: DataConnection) => {
-    // 定期的な接続チェック
-    const checkInterval = setInterval(() => {
-      if (!conn.open) {
-        cleanup();
-      }
-    }, 5000);
+  const setupConnection = (conn) => {
+    if (peersRef.current[conn.peer]) return;
 
-    const cleanup = () => {
-      clearInterval(checkInterval);
-      if (connsRef.current[conn.peer]) {
-        delete connsRef.current[conn.peer];
-        setConns({ ...connsRef.current });
-        setMessages(prev => [...prev, { system: true, text: "誰かが退室しました" }]);
+    conn.on('open', () => {
+      // 1. 接続直後に自分の名前を相手に送る
+      conn.send({ type: 'introduce', name: myName });
+    });
+
+    conn.on('data', (data) => {
+      if (data.type === 'introduce') {
+        // 名前を受け取って登録
+        peersRef.current[conn.peer] = { conn, name: data.name };
+        setPeers({ ...peersRef.current });
+        setMessages(prev => [...prev, { system: true, text: `${data.name}が入室しました` }]);
+
+        // 自分がリーダーなら、他の全メンバーのIDリストを共有
+        const otherIds = Object.keys(peersRef.current).filter(id => id !== conn.peer);
+        if (otherIds.length > 0) {
+          conn.send({ type: 'member-list', ids: otherIds });
+        }
+      } 
+      else if (data.type === 'chat') {
+        setMessages(prev => [...prev, { sender: data.senderName, text: data.text }]);
+      } 
+      else if (data.type === 'member-list') {
+        data.ids.forEach(id => connectToPeer(id));
+      }
+      else if (data.type === 'leave') {
+        cleanup(conn.peer, data.senderName);
+      }
+    });
+
+    const cleanup = (id, name) => {
+      if (peersRef.current[id]) {
+        const displayName = name || peersRef.current[id].name || "不明なユーザー";
+        delete peersRef.current[id];
+        setPeers({ ...peersRef.current });
+        setMessages(prev => [...prev, { system: true, text: `${displayName}が退室しました` }]);
       }
     };
 
-    conn.on('open', () => {
-      // 接続リストに追加
-      addConnection(conn);
-      setMessages(prev => [...prev, { system: true, text: `${conn.peer.substring(0,5)}... が入室しました` }]);
-
-      // 【リーダーの役割】新しい人が来たら、現在接続中の他の全員のIDを教える
-      const otherPeerIds = Object.keys(connsRef.current).filter(id => id !== conn.peer);
-      if (otherPeerIds.length > 0) {
-        conn.send({ type: 'member-list', ids: otherPeerIds });
-      }
-    });
-    conn.on('data', (data: { type: string; sender?: string; text?: string, ids?: string[] }) => {
-      if (data.type === 'chat') {
-        // メッセージの受信
-        setMessages(prev => [...prev, { sender: data.sender!, text: data.text! }]);
-      } else if (data.type === 'member-list') {
-        // 【新人の役割】リーダーから貰った名簿をもとに、全員に自分から接続する
-        data.ids!.forEach(id => {
-          if (!connsRef.current[id]) {
-            connectToPeer(id);
-          }
-        });
-      } else if (data.type === 'leave') {
-        // 明示的な退出通知を受け取った場合
-        cleanup();
-        conn.close();
-      }
-    });
-    conn.on('close', cleanup);
-    conn.on('error', cleanup);
+    conn.on('close', () => cleanup(conn.peer));
+    conn.on('error', () => cleanup(conn.peer));
   };
 
-  const addConnection = (conn: DataConnection) => {
-    connsRef.current[conn.peer] = conn;
-    setConns({ ...connsRef.current });
-  };
-
-  const connectToPeer = (id: string) => {
-    if (id === myId || connsRef.current[id] || !peerRef.current) return;
+  const connectToPeer = (id) => {
+    if (!id || id === myId || peersRef.current[id]) return;
     const conn = peerRef.current.connect(id);
     setupConnection(conn);
   };
@@ -122,18 +111,11 @@ const ChatApp = () => {
     e.preventDefault();
     if (!messageInput) return;
 
-    const payload = {
-      type: 'chat',
-      sender: myId.substring(0, 5),
-      text: messageInput
-    };
-  
-    // 接続している全員に送信（ブロードキャスト）
-    Object.values(conns).forEach(conn => {
-      if (conn.open) {
-        conn.send(payload);
-      }
+    const payload = { type: 'chat', senderName: myName, text: messageInput };
+    Object.values(peersRef.current).forEach(({ conn }) => {
+      if (conn.open) conn.send(payload);
     });
+
     setMessages(prev => [...prev, { sender: '自分', text: messageInput }]);
     setMessageInput('');
   };
@@ -147,14 +129,44 @@ const ChatApp = () => {
     });
   };
 
+  const handleNameSubmit = (e) => {
+    e.preventDefault();
+    if (tempName.trim()) {
+      setMyName(tempName);
+      setIsNameSet(true);
+    }
+  };
+
+  // 名前入力画面
+  if (!isNameSet) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-900">
+        <form onSubmit={handleNameSubmit} className="bg-slate-800 p-8 rounded-2xl shadow-2xl w-80 text-center">
+          <h2 className="text-indigo-400 font-bold mb-4 text-xl">名前を設定してください</h2>
+          <input 
+            className="w-full bg-slate-700 border-none rounded-lg px-4 py-2 text-white mb-4 outline-none focus:ring-2 focus:ring-indigo-500"
+            value={tempName}
+            onChange={(e) => setTempName(e.target.value)}
+            placeholder="ユーザー名"
+            autoFocus
+          />
+          <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-lg transition-all">
+            チャットを開始
+          </button>
+        </form>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-screen bg-slate-900 p-4 text-slate-100">
-      <div className="max-w-2xl mx-auto w-full flex flex-col h-full bg-slate-800 rounded-xl shadow-2xl overflow-hidden">
+    <div className="flex flex-col h-screen bg-slate-900 p-4 text-slate-100 font-sans">
+      <div className="max-w-2xl mx-auto w-full flex flex-col h-full bg-slate-800 rounded-xl shadow-2xl overflow-hidden border border-slate-700">
         
         {/* ヘッダーセクション */}
         <div className="bg-slate-800 p-5 text-white">
           <h1 className="text-xl font-bold mb-2 text-center text-indigo-400">P2P Chat</h1>
-          <p className="text-[10px] text-slate-400">参加人数: {Object.keys(conns).length + 1}名</p>
+          <h2>名前: {myName}</h2>
+          <p className="text-[10px] text-slate-400">参加人数: {Object.keys(peers).length + 1}名</p>
           <div className="bg-slate-700 rounded-lg p-3 flex flex-col gap-2">
             <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Your ID</div>
             <div className="text-sm font-mono break-all text-indigo-200">{myId || '発行中...'}</div>
@@ -171,40 +183,40 @@ const ChatApp = () => {
         </div>
 
         {/* チャットログ */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-900/50">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-900/30">
           {messages.map((msg, i) => (
             <div key={i} className={`flex flex-col ${msg.sender === '自分' ? 'items-end' : 'items-start'}`}>
               {msg.system ? (
-                <span className="text-[10px] text-slate-500 italic mx-auto my-2 uppercase tracking-widest">{msg.text}</span>
+                <span className="text-[10px] text-slate-500 mx-auto my-1 uppercase">{msg.text}</span>
               ) : (
-                <>
-                  <span className="text-[10px] text-slate-400 mb-1 ml-1">{msg.sender}</span>
-                  <div className={`px-4 py-2 rounded-2xl text-sm max-w-[80%] break-all ${
+                <div className={`max-w-[85%] flex flex-col ${msg.sender === '自分' ? 'items-end' : 'items-start'}`}>
+                  <span className="text-[10px] text-slate-400 px-1 mb-1">{msg.sender}</span>
+                  <div className={`px-4 py-2 rounded-2xl text-sm ${
                     msg.sender === '自分' ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-700 text-slate-100 rounded-tl-none border border-slate-600'
                   }`}>
                     {msg.text}
                   </div>
-                </>
+                </div>
               )}
             </div>
           ))}
         </div>
 
-        {/* 入力エリア */}
-        <form onSubmit={sendMessage} className="p-4 bg-slate-800 border-t border-slate-700 flex gap-2">
-          <input 
-            type="text" 
-            className="flex-1 bg-slate-700 border-none rounded-lg px-4 py-3 text-sm text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-            placeholder="全員にメッセージを送信..."
-            value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
-          />
-          <button type="submit" className="bg-indigo-600 p-3 rounded-lg hover:bg-indigo-500 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 fill-current" viewBox="0 0 20 20">
-              <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-            </svg>
-          </button>
-        </form>
+        {/* 送信フォーム */}
+        <div className="p-4 bg-slate-800 border-t border-slate-700">
+          <form onSubmit={sendMessage} className="flex gap-2">
+            <input 
+              type="text" 
+              className="flex-1 bg-slate-900 border border-slate-600 rounded-full px-5 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+              placeholder="メッセージ..."
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+            />
+            <button type="submit" className="bg-indigo-600 text-white px-5 py-2 rounded-full text-sm font-bold shadow-md active:scale-95 transition-all disabled:opacity-50">
+              送信
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
