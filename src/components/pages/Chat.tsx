@@ -10,6 +10,7 @@ const ChatApp = () => {
   const [copyStatus, setCopyStatus] = useState('URLをコピー');
 
   const peerRef = useRef<Peer>(null);
+  const connsRef = useRef<{ [key: string]: DataConnection }>({}); // レンダリングを跨いで最新の接続状態を保持
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -42,38 +43,52 @@ const ChatApp = () => {
 
   const setupConnection = (conn: DataConnection) => {
     conn.on('open', () => {
-      setConns(prev => ({ ...prev, [conn.peer]: conn }));
+      // 接続リストに追加
+      addConnection(conn);
       setMessages(prev => [...prev, { system: true, text: `${conn.peer.substring(0,5)}... が入室しました` }]);
     });
-    conn.on('data', (data) => {
-      if (typeof data === 'string') {
+    conn.on('data', (data: { type: string; sender: string; text: string }) => {
+      if (data.type === 'chat') {
         // 複数人でメッセージやり取りをできるように
-        setMessages(prev => [...prev, { sender: conn.peer.substring(0,5), text: data }]);
+        setMessages(prev => [...prev, { sender: data.sender, text: data.text }]);
       }
     });
     conn.on('close', () => {
-      setMessages(prev => [...prev, { system: true, text: '誰かが退室しました' }]);
-      setConns(prev => {
-        const newConns = { ...prev };
-        delete newConns[conn.peer];
-        return newConns;
-      });
+      removeConnection(conn.peer);
     });
   };
 
+  const addConnection = (conn: DataConnection) => {
+    connsRef.current[conn.peer] = conn;
+    setConns({ ...connsRef.current });
+  };
+
+  const removeConnection = (id: string) => {
+    delete connsRef.current[id];
+    setConns({ ...connsRef.current });
+    setMessages(prev => [...prev, { system: true, text: "誰かが退室しました" }]);
+  };
+
   const connectToPeer = (id: string) => {
-    if (conns[id] || !peerRef.current) return; // 接続済みならスキップ
+    if (id === myId || connsRef.current[id] || !peerRef.current) return;
     const conn = peerRef.current.connect(id);
     setupConnection(conn);
   };
 
   const sendMessage = (e) => {
     e.preventDefault();
+    if (!messageInput) return;
+
+    const payload = {
+      type: 'chat',
+      sender: myId.substring(0, 5),
+      text: messageInput
+    };
   
     // 接続している全員に送信（ブロードキャスト）
     Object.values(conns).forEach(conn => {
       if (conn.open) {
-        conn.send(messageInput);
+        conn.send(payload);
       }
     });
     setMessages(prev => [...prev, { sender: '自分', text: messageInput }]);
