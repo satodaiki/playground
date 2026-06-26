@@ -88,9 +88,9 @@ const ChatApp = () => {
       }
     });
 
-    const cleanup = (id, name) => {
+    const cleanup = (id: string) => {
       if (peersRef.current[id]) {
-        const displayName = name || peersRef.current[id].name || "不明なユーザー";
+        const displayName = peersRef.current[id].name || "不明なユーザー";
         delete peersRef.current[id];
         setPeers({ ...peersRef.current });
         setMessages(prev => [...prev, { system: true, text: `${displayName}が退室しました` }]);

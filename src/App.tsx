@@ -1,25 +1,26 @@
-import JoyaNoKane from '@/components/pages/JoyaNoKane'
+import JoyaNoKane from "@/components/pages/JoyaNoKane";
 // import WasmTerminal from '@/components/pages/WasmTerminal'
 // import Tetlis from '@/components/pages/Tetlis';
-import Chat from '@/components/pages/Chat';
-import Insider from '@/components/pages/Insider';
-import '@/App.css'
+// import Insider from "@/components/pages/Insider";
+import Chat from "@/components/pages/Chat";
+import "@/App.css";
 
-import { Link, Route, Switch } from 'wouter';
+import { Link, Route, Switch } from "wouter";
 
 // --- 1. 作品データの定義 ---
 const PROJECTS = [
   {
-    id: 'joya',
-    title: '除夜の鐘',
-    description: '大晦日に作ったアプリ。ついてついてつきまくれ！目指せ108万回！',
-    path: '/joya'
+    id: "joya",
+    title: "除夜の鐘",
+    description:
+      "大晦日に作ったアプリ。ついてついてつきまくれ！目指せ108万回！",
+    path: "/joya",
   },
   {
-    id: 'chat',
-    title: 'チャット',
-    description: 'Peer.jsで作ったP2Pのリアルタイムチャットアプリ',
-    path: '/chat'
+    id: "chat",
+    title: "チャット",
+    description: "Peer.jsで作ったP2Pのリアルタイムチャットアプリ",
+    path: "/chat",
   },
   // {
   //   id: 'insider',
@@ -41,24 +42,31 @@ const PROJECTS = [
   //   path: '/wasm-terminal'
   // },
   {
-    id: 'coming-soon',
-    title: '次の作品を制作中...',
-    description: '現在、新しいアイデアを形にしています。お楽しみに！',
-    path: '#' // 未実装や準備中の作品
-  }
+    id: "coming-soon",
+    title: "次の作品を制作中...",
+    description: "現在、新しいアイデアを形にしています。お楽しみに！",
+    path: "#", // 未実装や準備中の作品
+  },
 ];
 
 // --- 2. 各コンポーネント ---
 
 // 作品カード
-const ProjectCard = ({ project }: { project: typeof PROJECTS[0] }) => (
+const ProjectCard = ({ project }: { project: (typeof PROJECTS)[0] }) => (
   <div className="group overflow-hidden rounded-2xl bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border border-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-white">
-    <h3 className="mb-2 text-xl font-bold text-gray-800 dark:text-white">{project.title}</h3>
-    <p className="mb-4 text-sm leading-relaxed text-gray-600 dark:text-gray-400">{project.description}</p>
+    <h3 className="mb-2 text-xl font-bold text-gray-800 dark:text-white">
+      {project.title}
+    </h3>
+    <p className="mb-4 text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+      {project.description}
+    </p>
     <Link href={project.path}>
       {/* aタグを直接使用し、Tailwindのスタイルを適用 */}
       <a className="inline-flex items-center font-semibold text-indigo-600 transition-colors duration-300 group-hover:text-indigo-500 dark:text-indigo-400 dark:group-hover:text-indigo-300">
-        作品を見る <span className="ml-1 transition-transform duration-300 group-hover:translate-x-1">→</span>
+        作品を見る{" "}
+        <span className="ml-1 transition-transform duration-300 group-hover:translate-x-1">
+          →
+        </span>
       </a>
     </Link>
   </div>
@@ -78,7 +86,7 @@ const TopPage = () => (
       </header>
 
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {PROJECTS.map(p => (
+        {PROJECTS.map((p) => (
           <ProjectCard key={p.id} project={p} />
         ))}
       </section>
@@ -94,7 +102,7 @@ export default function App() {
         <Route path="/" component={TopPage} />
         <Route path="/joya" component={JoyaNoKane} />
         <Route path="/chat" component={Chat} />
-        {/* <Route path="/insider" component={Insider} /> */}
+        {/*<Route path="/insider" component={Insider} />*/}
         {/* <Route path="/wasm-terminal" component={WasmTerminal} /> */}
         {/* <Route path="/tetlis" component={Tetlis} /> */}
         {/* 404ページ */}
@@ -102,7 +110,9 @@ export default function App() {
           <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white text-2xl font-bold">
             404: ページが見つかりません
             <Link href="/">
-              <a className="ml-4 text-indigo-600 dark:text-indigo-400 hover:underline">トップに戻る</a>
+              <a className="ml-4 text-indigo-600 dark:text-indigo-400 hover:underline">
+                トップに戻る
+              </a>
             </Link>
           </div>
         </Route>
