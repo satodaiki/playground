@@ -1,0 +1,30 @@
+# 決定ログ
+
+## 1. WASM ビルドを std 維持 + `panic = "abort"` で「外部 import なし」にした
+- **背景**: フロントは `WebAssembly.instantiate(buf, {})`（空 import）でロードするため、wasm に env 等の import が 1 つでもあると失敗する。`#![no_std]` だと host 側 `cargo test`／cdylib リンクで panic_handler の有無が衝突して破綻する。
+- **検討した選択肢**: (a) `#![no_std]` + wasm 用 panic_handler、(b) std 維持 + `panic="abort"` + ヒープ未使用（固定長配列）。
+- **理由**: (b) なら host テストはそのまま通り、wasm 側は panic が unreachable に畳まれ import を生まない。`WebAssembly.Module.imports()` で `[]` を確認済み。
+
+## 2. PRNG に xoroshiro64* を採用（状態 = u32×2 = 64bit）
+- **背景**: テスト契約 `Rng::new(s0: u32, s1: u32)` は 64bit 状態。決定性・範囲・一様性（±40%）・非定数性のテストを満たす必要がある。
+- **検討した選択肢**: xorshift64*、xoroshiro64*、LCG。
+- **理由**: xoroshiro64* は 2×u32 状態にちょうど合致し分布が良好。全ゼロ状態のみ退化するため `new` でその場合だけ非ゼロ定数に置換（tests のシードは全て非ゼロなので系列に影響なし）。
+
+## 3. 句の「構造」は Rust、語の選択は TS という責務分割
+- **背景**: compose_test が「per-segment word picks は TS 側」と明記。WASM は整数のみ受け渡し。
+- **検討した選択肢**: 語まで Rust で確定 / 構造のみ Rust。
+- **理由**: テスト契約に従い `roll()`/`line_len`/`seg_bank` で構造を返し、TS が `pick(bank.words.length)` で語を選ぶ。`compose::BANK_COUNT(=6)` と TS `BANKS.length(=6)` を一致させる契約。FFI 関数名は module `compose` と衝突するため `roll()` に命名。
+
+## 4. 韻律スコアは「行長のばらつき＋5-7-5 からの距離」の整数純粋関数
+- **背景**: score_test が「自由律 > 定型 5-7-5」「ばらつき大 > 均一」を要求。
+- **検討した選択肢**: 平均偏差ベース / 分散ベース / 5-7-5 一致ペナルティ単独。
+- **理由**: `variation = Σ|len_i·n − total|`（平均偏差の n 倍、整数化）に、3 行時のみ `Σ|len−[5,7,5]|` を加点。両テストとも追加項なしでも成立し、空・単行でも除算なしで panic しない。
+
+## 5. localStorage 読み込みは lazy `useState` 初期化子にした（参照実装からの軽微改善）
+- **背景**: 参照 `JiyuGacha.tsx` は effect 内 `setState` で永続データを読むが、`react-hooks/set-state-in-effect` の lint error になる（プロジェクト既存ベースラインにも同 error が多数）。
+- **検討した選択肢**: 参照どおり effect 内 setState / lazy initializer。
+- **理由**: `useState(() => readList(KEY))` は同一挙動でこの lint error を解消でき、WASM 非同期ロードは従来どおり effect に残すため「JiyuGacha と同様」の要件も保てる。新規ファイルの lint は 0 件。
+
+## 補足: ビルド検証の前提
+- `npm run build` はプロジェクト定義どおり `vite build`（`__build` の `tsc -b` は既存 tetlis 群に多数の型エラーがあり、本タスク対象外）。新規 `FreeHaiku.tsx`/`App.tsx` は隔離型チェックで型エラー 0 を確認。
+- wasm 再生成はソース＋`build.sh`（rustup ツールチェイン bin を PATH 前置きして Homebrew rustc を回避）で再現可能。`/target` は `.gitignore` 済み。
