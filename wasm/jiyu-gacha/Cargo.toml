@@ -1,0 +1,17 @@
+[package]
+name = "jiyu_gacha_core"
+version = "0.1.0"
+edition = "2021"
+description = "発想ガチャ JIYU GACHA のコアエンジン（Rust -> WebAssembly）"
+license = "MIT"
+
+[lib]
+# cdylib: ブラウザ向け .wasm を出力 / rlib: ネイティブの cargo test 用
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = "z"
+lto = true
+panic = "abort"
+codegen-units = 1
+strip = true
