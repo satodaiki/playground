@@ -84,6 +84,6 @@ pub extern "C" fn score_push(len: u32) {
 pub extern "C" fn score_eval() -> i32 {
     unsafe {
         let n = SCORE_N;
-        score::prosody_score(&(*addr_of!(SCORE_LENS))[..n])
+        score::prosody_score(&(&(*addr_of!(SCORE_LENS)))[..n])
     }
 }
