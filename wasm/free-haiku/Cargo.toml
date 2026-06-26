@@ -1,0 +1,17 @@
+[package]
+name = "free-haiku"
+version = "0.1.0"
+edition = "2021"
+description = "自由律俳句ジェネレーターのコア（決定的 PRNG・句構成・韻律スコア）"
+
+[lib]
+name = "free_haiku"
+crate-type = ["cdylib", "rlib"]
+
+# wasm32-unknown-unknown 向け cdylib を「外部 import なし」で生成するための設定。
+# panic=abort で panic 経路を unreachable に畳み、env 等のインポートを発生させない。
+[profile.release]
+opt-level = "s"
+lto = true
+panic = "abort"
+strip = true

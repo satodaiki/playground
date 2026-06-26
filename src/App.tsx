@@ -4,6 +4,7 @@ import JoyaNoKane from "@/components/pages/JoyaNoKane";
 // import Insider from "@/components/pages/Insider";
 import Chat from "@/components/pages/Chat";
 import JiyuGacha from "@/components/pages/JiyuGacha";
+import FreeHaiku from "@/components/pages/FreeHaiku";
 import "@/App.css";
 
 import { Link, Route, Switch } from "wouter";
@@ -29,6 +30,13 @@ const PROJECTS = [
     description:
       "テーマ「自由」のハッカソン作品。領域×ターゲット×技術をガチャで引いて企画の種を出す。Rust→WASM製。",
     path: "/gacha",
+  },
+  {
+    id: "haiku",
+    title: "自由律俳句ジェネレーター",
+    description:
+      "テーマ「自由」を自由律で解釈。五・七・五に縛られず、語彙の組み合わせで一句を詠む。Rust→WASM製。",
+    path: "/haiku",
   },
   // {
   //   id: 'insider',
@@ -111,6 +119,7 @@ export default function App() {
         <Route path="/joya" component={JoyaNoKane} />
         <Route path="/chat" component={Chat} />
         <Route path="/gacha" component={JiyuGacha} />
+        <Route path="/haiku" component={FreeHaiku} />
         {/*<Route path="/insider" component={Insider} />*/}
         {/* <Route path="/wasm-terminal" component={WasmTerminal} /> */}
         {/* <Route path="/tetlis" component={Tetlis} /> */}

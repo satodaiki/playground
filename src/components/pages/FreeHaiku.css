@@ -1,0 +1,166 @@
+/* 自由律俳句ページ専用スタイル。
+   他ページへ漏れないよう、全セレクタを .fh-root 配下にスコープしている。 */
+.fh-root {
+  --fh-bg: #0e1410;
+  --fh-bg2: #131b16;
+  --fh-panel: #18221c;
+  --fh-ink: #eef3ee;
+  --fh-muted: #8fa597;
+  --fh-line: #2a382f;
+  --fh-accent: #7fd1a3;
+  --fh-accent2: #d8b46a;
+
+  min-height: 100vh;
+  color: var(--fh-ink);
+  background: radial-gradient(1200px 600px at 50% -10%, #1c2a22 0%, var(--fh-bg) 60%);
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
+}
+.fh-root * { box-sizing: border-box; }
+
+.fh-back {
+  display: inline-block;
+  margin: 16px 0 0 16px;
+  color: var(--fh-muted);
+  text-decoration: none;
+  font-size: 14px;
+}
+.fh-back:hover { color: var(--fh-ink); }
+
+.fh-hero { text-align: center; padding: 16px 16px 8px; }
+.fh-hero h1 {
+  margin: 0;
+  font-size: clamp(34px, 7vw, 64px);
+  letter-spacing: 0.28em;
+  background: linear-gradient(90deg, #7fd1a3, #d8b46a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.fh-tagline { color: var(--fh-muted); margin: 8px 0 0; font-size: 14px; }
+
+.fh-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  max-width: 1040px;
+  margin: 16px auto;
+  padding: 0 16px 40px;
+}
+@media (max-width: 860px) {
+  .fh-layout { grid-template-columns: 1fr; }
+}
+
+/* ---- 句の舞台 ---- */
+.fh-stage { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+
+.fh-paper {
+  width: 100%;
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  background: linear-gradient(180deg, var(--fh-bg2), var(--fh-panel));
+  border: 1px solid var(--fh-line);
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+
+.fh-placeholder, .fh-error { color: var(--fh-muted); text-align: center; }
+.fh-error { color: #f0a6a6; }
+
+.fh-poem {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: center;
+  animation: fh-fade 0.5s ease;
+}
+@keyframes fh-fade {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fh-line {
+  margin: 0;
+  font-size: clamp(22px, 4.4vw, 34px);
+  letter-spacing: 0.12em;
+  line-height: 1.5;
+}
+.fh-line:nth-child(even) { color: var(--fh-accent); }
+
+.fh-meta { display: flex; gap: 12px; align-items: center; color: var(--fh-muted); font-size: 13px; }
+.fh-score {
+  color: var(--fh-accent2);
+  font-weight: 700;
+  border: 1px solid var(--fh-line);
+  border-radius: 999px;
+  padding: 2px 12px;
+}
+
+/* ---- 操作 ---- */
+.fh-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.fh-primary {
+  border: none;
+  padding: 13px 40px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #10231a;
+  background: linear-gradient(90deg, #7fd1a3, #d8b46a);
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(127, 209, 163, 0.3);
+  transition: transform 0.08s ease, filter 0.2s;
+  font-family: inherit;
+}
+.fh-primary:hover { filter: brightness(1.05); }
+.fh-primary:active { transform: translateY(2px); }
+.fh-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.fh-mini {
+  border: 1px solid var(--fh-line);
+  background: var(--fh-bg2);
+  color: var(--fh-ink);
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+}
+.fh-mini:hover { border-color: var(--fh-muted); }
+.fh-mini:disabled { opacity: 0.5; cursor: not-allowed; }
+.fh-mini.fh-ghost { background: transparent; }
+
+/* ---- サイドパネル ---- */
+.fh-side { display: flex; flex-direction: column; gap: 16px; }
+.fh-panel {
+  background: var(--fh-bg2);
+  border: 1px solid var(--fh-line);
+  border-radius: 14px;
+  padding: 14px;
+}
+.fh-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.fh-panel-head h2 { font-size: 15px; margin: 0; color: var(--fh-muted); font-weight: 700; }
+.fh-list { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow: auto; }
+.fh-list li {
+  font-size: 14px;
+  padding: 9px 6px;
+  border-bottom: 1px solid var(--fh-line);
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  line-height: 1.5;
+}
+.fh-list li:last-child { border-bottom: none; }
+.fh-empty { color: var(--fh-muted); }
+.fh-tag {
+  flex: none;
+  font-size: 10px;
+  font-weight: 700;
+  color: #10231a;
+  background: var(--fh-accent);
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+
+.fh-foot { text-align: center; color: var(--fh-muted); font-size: 12px; padding: 0 0 32px; }
