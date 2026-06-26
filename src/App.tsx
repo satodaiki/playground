@@ -3,6 +3,7 @@ import JoyaNoKane from "@/components/pages/JoyaNoKane";
 // import Tetlis from '@/components/pages/Tetlis';
 // import Insider from "@/components/pages/Insider";
 import Chat from "@/components/pages/Chat";
+import JiyuGacha from "@/components/pages/JiyuGacha";
 import "@/App.css";
 
 import { Link, Route, Switch } from "wouter";
@@ -21,6 +22,13 @@ const PROJECTS = [
     title: "チャット",
     description: "Peer.jsで作ったP2Pのリアルタイムチャットアプリ",
     path: "/chat",
+  },
+  {
+    id: "gacha",
+    title: "JIYU GACHA（発想ガチャ）",
+    description:
+      "テーマ「自由」のハッカソン作品。領域×ターゲット×技術をガチャで引いて企画の種を出す。Rust→WASM製。",
+    path: "/gacha",
   },
   // {
   //   id: 'insider',
@@ -102,6 +110,7 @@ export default function App() {
         <Route path="/" component={TopPage} />
         <Route path="/joya" component={JoyaNoKane} />
         <Route path="/chat" component={Chat} />
+        <Route path="/gacha" component={JiyuGacha} />
         {/*<Route path="/insider" component={Insider} />*/}
         {/* <Route path="/wasm-terminal" component={WasmTerminal} /> */}
         {/* <Route path="/tetlis" component={Tetlis} /> */}
