@@ -1,0 +1,17 @@
+[package]
+name = "leap-to-freedom"
+version = "0.1.0"
+edition = "2021"
+description = "重力反転ランナー LEAP TO FREEDOM のコア（決定的 PRNG・物理・障害物生成・当たり判定）"
+
+[lib]
+name = "leap_to_freedom"
+crate-type = ["cdylib", "rlib"]
+
+# wasm32-unknown-unknown 向け cdylib を「外部 import なし」で生成するための設定。
+# panic=abort で panic 経路を unreachable に畳み、env 等のインポートを発生させない。
+[profile.release]
+opt-level = "s"
+lto = true
+panic = "abort"
+strip = true
