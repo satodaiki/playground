@@ -5,6 +5,7 @@ import JoyaNoKane from "@/components/pages/JoyaNoKane";
 import Chat from "@/components/pages/Chat";
 import JiyuGacha from "@/components/pages/JiyuGacha";
 import FreeHaiku from "@/components/pages/FreeHaiku";
+import LeapToFreedom from "@/components/pages/LeapToFreedom";
 import "@/App.css";
 
 import { Link, Route, Switch } from "wouter";
@@ -37,6 +38,13 @@ const PROJECTS = [
     description:
       "テーマ「自由」を自由律で解釈。五・七・五に縛られず、語彙の組み合わせで一句を詠む。Rust→WASM製。",
     path: "/haiku",
+  },
+  {
+    id: "leap",
+    title: "LEAP TO FREEDOM（自由への跳躍）",
+    description:
+      "テーマ「自由」を重力からの解放で表現。ワンボタンで重力を反転し、迫る壁を避けて走り続けるランナー。Rust→WASM製。",
+    path: "/leap",
   },
   // {
   //   id: 'insider',
@@ -120,6 +128,7 @@ export default function App() {
         <Route path="/chat" component={Chat} />
         <Route path="/gacha" component={JiyuGacha} />
         <Route path="/haiku" component={FreeHaiku} />
+        <Route path="/leap" component={LeapToFreedom} />
         {/*<Route path="/insider" component={Insider} />*/}
         {/* <Route path="/wasm-terminal" component={WasmTerminal} /> */}
         {/* <Route path="/tetlis" component={Tetlis} /> */}
