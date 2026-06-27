@@ -2,8 +2,8 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import JiyuGacha from './JiyuGacha';
-import { mockWasmFetch, mockWasmFetchFailure } from '@/test/wasm';
+import JiyuGacha from '@/components/pages/JiyuGacha';
+import { mockWasmFetch, mockWasmFetchFailure } from './wasm';
 
 describe('JiyuGacha', () => {
   beforeEach(() => {

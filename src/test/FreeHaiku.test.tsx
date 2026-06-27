@@ -2,8 +2,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import FreeHaiku from './FreeHaiku';
-import { mockWasmFetch, mockWasmFetchFailure } from '@/test/wasm';
+import FreeHaiku from '@/components/pages/FreeHaiku';
+import { mockWasmFetch, mockWasmFetchFailure } from './wasm';
 
 describe('FreeHaiku', () => {
   beforeEach(() => {
