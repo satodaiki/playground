@@ -108,9 +108,12 @@ const TopPage = () => (
         <p className="mt-4 text-xl text-gray-600 dark:text-gray-400">
           個人的に作った作品を置いていきます。
         </p>
+        <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+          JIYU GACHA・自由律俳句・LEAP TO FREEDOM は、ハッカソン（テーマ「自由」）で制作した作品です。
+        </p>
         <SlidesLink
           className="mt-6 inline-flex items-center gap-2 rounded-full border border-indigo-300 px-5 py-2 text-sm font-semibold text-indigo-600 transition-colors hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-950"
-          label="📊 ハッカソン発表資料を見る"
+          label="📊 3作品の発表資料を見る"
         />
       </header>
 
