@@ -2,7 +2,8 @@ import JoyaNoKane from "@/components/pages/JoyaNoKane";
 // import WasmTerminal from '@/components/pages/WasmTerminal'
 // import Tetlis from '@/components/pages/Tetlis';
 // import Insider from "@/components/pages/Insider";
-import Chat from "@/components/pages/Chat";
+// チャットは電気通信事業法の確認が取れるまで一時的に非公開（コードは保持）。
+// import Chat from "@/components/pages/Chat";
 import JiyuGacha from "@/components/pages/JiyuGacha";
 import FreeHaiku from "@/components/pages/FreeHaiku";
 import LeapToFreedom from "@/components/pages/LeapToFreedom";
@@ -20,12 +21,13 @@ const PROJECTS = [
       "大晦日に作ったアプリ。ついてついてつきまくれ！目指せ108万回！",
     path: "/joya",
   },
-  {
-    id: "chat",
-    title: "チャット",
-    description: "Peer.jsで作ったP2Pのリアルタイムチャットアプリ",
-    path: "/chat",
-  },
+  // 電気通信事業法の確認が取れるまで一時的に非公開。
+  // {
+  //   id: "chat",
+  //   title: "チャット",
+  //   description: "Peer.jsで作ったP2Pのリアルタイムチャットアプリ",
+  //   path: "/chat",
+  // },
   {
     id: "gacha",
     title: "JIYU GACHA（発想ガチャ）",
@@ -133,7 +135,8 @@ export default function App() {
       <Switch>
         <Route path="/" component={TopPage} />
         <Route path="/joya" component={JoyaNoKane} />
-        <Route path="/chat" component={Chat} />
+        {/* チャットは電気通信事業法の確認が取れるまで一時的に非公開 */}
+        {/* <Route path="/chat" component={Chat} /> */}
         <Route path="/gacha" component={JiyuGacha} />
         <Route path="/haiku" component={FreeHaiku} />
         <Route path="/leap" component={LeapToFreedom} />
