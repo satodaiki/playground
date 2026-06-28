@@ -6,6 +6,7 @@ import Chat from "@/components/pages/Chat";
 import JiyuGacha from "@/components/pages/JiyuGacha";
 import FreeHaiku from "@/components/pages/FreeHaiku";
 import LeapToFreedom from "@/components/pages/LeapToFreedom";
+import SlidesLink from "@/components/atoms/SlidesLink";
 import "@/App.css";
 
 import { Link, Route, Switch } from "wouter";
@@ -107,6 +108,10 @@ const TopPage = () => (
         <p className="mt-4 text-xl text-gray-600 dark:text-gray-400">
           個人的に作った作品を置いていきます。
         </p>
+        <SlidesLink
+          className="mt-6 inline-flex items-center gap-2 rounded-full border border-indigo-300 px-5 py-2 text-sm font-semibold text-indigo-600 transition-colors hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-950"
+          label="📊 ハッカソン発表資料を見る"
+        />
       </header>
 
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

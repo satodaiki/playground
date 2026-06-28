@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import BackLink from '@/components/atoms/BackLink';
 import PageFooter from '@/components/atoms/PageFooter';
+import SlidesLink from '@/components/atoms/SlidesLink';
 import { useWasm } from '@/hooks/useWasm';
 import { makeSeed } from '@/lib/seed';
 import wasmUrl from '@/assets/leap_to_freedom.wasm?url';
@@ -135,7 +136,9 @@ export default function LeapToFreedom() {
         </button>
       </main>
 
-      <PageFooter className="ltf-foot">RUST → WEBASSEMBLY · 完全フロントエンド</PageFooter>
+      <PageFooter className="ltf-foot">
+        RUST → WEBASSEMBLY · 完全フロントエンド · <SlidesLink className="ltf-slides" />
+      </PageFooter>
     </div>
   );
 }

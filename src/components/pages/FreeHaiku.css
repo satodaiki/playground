@@ -164,3 +164,5 @@
 }
 
 .fh-foot { text-align: center; color: var(--fh-muted); font-size: 12px; padding: 0 0 32px; }
+.fh-slides { color: inherit; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+.fh-slides:hover { opacity: 0.75; }

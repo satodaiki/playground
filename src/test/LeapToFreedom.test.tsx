@@ -17,6 +17,11 @@ describe('LeapToFreedom', () => {
     vi.stubGlobal('cancelAnimationFrame', () => {});
   });
 
+  it('ハッカソン発表資料リンクを表示する', () => {
+    render(<LeapToFreedom />);
+    expect(screen.getByRole('link', { name: /ハッカソン発表資料/ })).toBeInTheDocument();
+  });
+
   it('読み込み後にスタート画面（重力反転の案内と START）が出る', async () => {
     render(<LeapToFreedom />);
 

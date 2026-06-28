@@ -10,6 +10,11 @@ describe('FreeHaiku', () => {
     mockWasmFetch('free_haiku.wasm');
   });
 
+  it('ハッカソン発表資料リンクを表示する', () => {
+    render(<FreeHaiku />);
+    expect(screen.getByRole('link', { name: /ハッカソン発表資料/ })).toBeInTheDocument();
+  });
+
   it('WASM 読み込み前は「詠む」が無効、読み込み後に有効化される', async () => {
     render(<FreeHaiku />);
 

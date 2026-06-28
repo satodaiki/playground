@@ -10,6 +10,11 @@ describe('JiyuGacha', () => {
     mockWasmFetch('gacha_core.wasm');
   });
 
+  it('ハッカソン発表資料リンクを表示する', () => {
+    render(<JiyuGacha />);
+    expect(screen.getByRole('link', { name: /ハッカソン発表資料/ })).toBeInTheDocument();
+  });
+
   it('WASM 読み込み前はレバーが無効、読み込み後に有効化される', async () => {
     render(<JiyuGacha />);
 

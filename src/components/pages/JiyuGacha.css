@@ -205,3 +205,5 @@
 }
 
 .jg-foot { text-align: center; color: var(--jg-muted); font-size: 12px; padding: 0 0 32px; }
+.jg-slides { color: inherit; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+.jg-slides:hover { opacity: 0.75; }

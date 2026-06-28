@@ -362,6 +362,15 @@
   letter-spacing: 0.18em;
   padding: 0 16px 36px;
 }
+.ltf-slides {
+  color: var(--ltf-mint);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+.ltf-slides:hover {
+  color: var(--ltf-paper);
+}
 
 /* 狭幅：タイトルを 2 行で収め、横スクロールを防ぐ */
 @media (max-width: 480px) {

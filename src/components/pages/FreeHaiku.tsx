@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 
 import BackLink from '@/components/atoms/BackLink';
 import PageFooter from '@/components/atoms/PageFooter';
+import SlidesLink from '@/components/atoms/SlidesLink';
 import ListPanel from '@/components/molecules/ListPanel';
 import { useWasm } from '@/hooks/useWasm';
 import { readList, writeList } from '@/lib/storage';
@@ -106,7 +107,9 @@ export default function FreeHaiku() {
         </aside>
       </main>
 
-      <PageFooter className="fh-foot">Rust → WebAssembly / フロントエンド完結</PageFooter>
+      <PageFooter className="fh-foot">
+        Rust → WebAssembly / フロントエンド完結 · <SlidesLink className="fh-slides" />
+      </PageFooter>
     </div>
   );
 }
