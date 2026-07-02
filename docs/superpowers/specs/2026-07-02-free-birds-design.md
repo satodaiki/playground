@@ -63,6 +63,10 @@ leap-to-freedom のアトミックデザイン分解に倣う。
   小さな三角形（鳥形）で描く。
 - `free-birds/constants.ts` — 鳥数、色、かご寸法などの定数。
 
+ビジュアルデザイン（配色・タイポグラフィ・レイアウト・モーションの質感）は
+frontend-design スキル（frontend-design@claude-plugins-official）のガイドラインに
+従って実装する。
+
 ### ルーティング・カード
 
 - `App.tsx` に `<Route path="/birds" component={FreeBirds} />` を追加。
