@@ -74,3 +74,7 @@ terraform.rc
 # planout
 # TAKT 実行ログ（自動生成・コミット対象外）
 .takt/runs/
+
+# Rust→WASM ビルド成果物（非決定的ビルドで毎回差分が出るため追跡しない）。
+# `npm run dev` / `npm run build:wasm` / `npm run deploy` が都度生成する。
+src/assets/*.wasm
