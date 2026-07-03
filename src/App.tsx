@@ -7,6 +7,7 @@ import JoyaNoKane from "@/components/pages/JoyaNoKane";
 import JiyuGacha from "@/components/pages/JiyuGacha";
 import FreeHaiku from "@/components/pages/FreeHaiku";
 import LeapToFreedom from "@/components/pages/LeapToFreedom";
+import FreeBirds from "@/components/pages/FreeBirds";
 import SlidesLink from "@/components/atoms/SlidesLink";
 import "@/App.css";
 
@@ -48,6 +49,13 @@ const PROJECTS = [
     description:
       "テーマ「自由」を重力からの解放で表現。ワンボタンで重力を反転し、迫る壁を避けて走り続けるランナー。Rust→WASM製。",
     path: "/leap",
+  },
+  {
+    id: "birds",
+    title: "FREE THE BIRDS（籠の外へ）",
+    description:
+      "テーマ「自由」を群れの創発で表現。籠を開けると200羽がboidsアルゴリズムで自己組織化して舞う。Rust→WASM製。",
+    path: "/birds",
   },
   // {
   //   id: 'insider',
@@ -140,6 +148,7 @@ export default function App() {
         <Route path="/gacha" component={JiyuGacha} />
         <Route path="/haiku" component={FreeHaiku} />
         <Route path="/leap" component={LeapToFreedom} />
+        <Route path="/birds" component={FreeBirds} />
         {/*<Route path="/insider" component={Insider} />*/}
         {/* <Route path="/wasm-terminal" component={WasmTerminal} /> */}
         {/* <Route path="/tetlis" component={Tetlis} /> */}

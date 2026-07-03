@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "npm run build:wasm && vite",
     "dev:fast": "vite",
-    "build:wasm": "bash wasm/jiyu-gacha/build.sh && bash wasm/free-haiku/build.sh && bash wasm/leap-to-freedom/build.sh",
+    "build:wasm": "bash wasm/jiyu-gacha/build.sh && bash wasm/free-haiku/build.sh && bash wasm/leap-to-freedom/build.sh && bash wasm/free-birds/build.sh",
     "__build": "tsc -b && vite build",
     "build": "vite build",
     "lint": "eslint .",
