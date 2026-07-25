@@ -6,6 +6,7 @@ import BackLink from "@/components/atoms/BackLink";
 
 const MODEL_ID = "gemma-2-2b-jpn-it-q4f16_1-MLC";
 const SILENCE_MS = 5_000;
+const SUGGESTION_HISTORY_SIZE = 5;
 const DB_NAME = "voice-action";
 const STORE_NAME = "utterances";
 
@@ -97,6 +98,14 @@ export function conversationForPrompt(utterances: Utterance[]) {
     .join("\n");
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
+export function suggestionHistoryForPrompt(suggestions: string[]) {
+  return suggestions
+    .slice(-SUGGESTION_HISTORY_SIZE)
+    .map((text) => `- ${text}`)
+    .join("\n");
+}
+
 function errorMessage(error: string) {
   if (error === "not-allowed" || error === "service-not-allowed") {
     return "マイクの使用が許可されていません。ブラウザの設定を確認してください。";
@@ -120,6 +129,7 @@ export default function VoiceAction() {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const listeningRef = useRef(false);
   const utterancesRef = useRef<Utterance[]>([]);
+  const suggestionHistoryRef = useRef<string[]>([]);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const engineRef = useRef<MLCEngineInterface | null>(null);
   const enginePromiseRef = useRef<Promise<MLCEngineInterface> | null>(null);
@@ -144,6 +154,9 @@ export default function VoiceAction() {
   const suggestNextTopic = useCallback(async () => {
     const engine = engineRef.current;
     const transcript = conversationForPrompt(utterancesRef.current);
+    const previousSuggestions = suggestionHistoryForPrompt(
+      suggestionHistoryRef.current,
+    );
     if (!transcript) return;
     if (!engine) {
       pendingSuggestionRef.current = true;
@@ -159,20 +172,40 @@ export default function VoiceAction() {
           {
             role: "system",
             content:
-              `あなたは会話を自然に深掘りする聞き手です。入力には音声認識の誤変換が含まれる可能性があります。
-              直近の話題を参考に、次の話題の提案を日本語で1つだけ返してください。内容が不明瞭なら推測せず、聞き取れた言葉を使って確認質問をしてください。
-              会話にない人物・出来事・固有名詞を作らないでください。前置きや箇条書きは不要です。`
+              `あなたは、会話が楽しく自然に続くように次の話題を提案するアシスタントです。入力には音声認識の誤変換が含まれる可能性があります。
+
+              会話の流れに応じて、次のいずれかを選んでください。
+              ・今の話題を少しだけ深める
+              ・関連する別の話題へ横に広げる
+              ・一区切りついた話題から、身近で答えやすい新しい話題へ切り替える
+
+              同じ話題への質問が続いている場合は、深掘りせず話題を広げるか切り替えてください。「なぜ」「理由」「具体的には」と繰り返し尋ねないでください。相手の考えや個人的な事情を追及する質問よりも、気軽に話せる体験、好み、最近の出来事、周辺の話題を優先してください。
+
+              直近の提案が入力に含まれる場合は、それらと同じ内容や言い換えを避け、別の観点または別の話題を提案してください。
+
+              会話にない人物・出来事・固有名詞は作らないでください。ただし、一般的な話題を新しく提案することはできます。内容が多少不明瞭でも、聞き取れた範囲から自然に話題を提案してください。意味を判断できない場合に限り、短い確認質問をしてください。
+
+              次に話せる内容を、日本語で自然な一文として1つだけ返してください。前置きや箇条書きは不要です。`
           },
-          { role: "user", content: transcript },
+          {
+            role: "user",
+            content: previousSuggestions
+              ? `会話ログ:\n${transcript}\n\n直近の提案（重複禁止）:\n${previousSuggestions}`
+              : transcript,
+          },
         ],
         max_tokens: 80,
         temperature: 0.2,
       });
       if (generation === generationRef.current) {
-        setSuggestion(
+        const nextSuggestion =
           response.choices[0]?.message.content?.trim() ||
-            "最近、気になっていることはありますか？",
-        );
+          "最近、気になっていることはありますか？";
+        suggestionHistoryRef.current = [
+          ...suggestionHistoryRef.current,
+          nextSuggestion,
+        ].slice(-SUGGESTION_HISTORY_SIZE);
+        setSuggestion(nextSuggestion);
       }
     } catch {
       setNotice("話題を生成できませんでした。モデルを再準備してください。");
@@ -316,6 +349,7 @@ export default function VoiceAction() {
   const clearConversation = useCallback(() => {
     generationRef.current += 1;
     utterancesRef.current = [];
+    suggestionHistoryRef.current = [];
     setUtterances([]);
     setSuggestion("");
     setInterimText("");
