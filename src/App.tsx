@@ -8,6 +8,7 @@ import JiyuGacha from "@/components/pages/JiyuGacha";
 import FreeHaiku from "@/components/pages/FreeHaiku";
 import LeapToFreedom from "@/components/pages/LeapToFreedom";
 import FreeBirds from "@/components/pages/FreeBirds";
+import VoiceAction from "@/components/pages/VoiceAction";
 import SlidesLink from "@/components/atoms/SlidesLink";
 import "@/App.css";
 
@@ -56,6 +57,13 @@ const PROJECTS = [
     description:
       "テーマ「自由」を群れの創発で表現。籠を開けると200羽がboidsアルゴリズムで自己組織化して舞う。Rust→WASM製。",
     path: "/birds",
+  },
+  {
+    id: "voice-action",
+    title: "VoiceAction",
+    description:
+      "会話を記録し、5秒の沈黙をきっかけにWebLLMが次の話題を提案。会話は端末内だけに保存します。",
+    path: "/voice-action",
   },
   // {
   //   id: 'insider',
@@ -149,6 +157,7 @@ export default function App() {
         <Route path="/haiku" component={FreeHaiku} />
         <Route path="/leap" component={LeapToFreedom} />
         <Route path="/birds" component={FreeBirds} />
+        <Route path="/voice-action" component={VoiceAction} />
         {/*<Route path="/insider" component={Insider} />*/}
         {/* <Route path="/wasm-terminal" component={WasmTerminal} /> */}
         {/* <Route path="/tetlis" component={Tetlis} /> */}

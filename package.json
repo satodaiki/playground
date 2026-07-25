@@ -16,6 +16,7 @@
     "deploy": "npm run build:wasm && npm run build && aws s3 sync ./dist s3://joyanokane-playground-neer-engineer.com-bucket --delete && aws cloudfront create-invalidation --distribution-id E16HB80E2B9UKF --paths \"/*\""
   },
   "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.84",
     "@tailwindcss/vite": "^4.1.18",
     "lucide-react": "^0.562.0",
     "peerjs": "^1.5.5",
