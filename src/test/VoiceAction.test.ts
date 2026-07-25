@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   conversationForPrompt,
+  isSimilarSuggestion,
   suggestionHistoryForPrompt,
 } from "@/components/pages/VoiceAction";
 
@@ -31,5 +32,29 @@ describe("suggestionHistoryForPrompt", () => {
     expect(suggestionHistoryForPrompt(suggestions).split("\n")).toEqual(
       suggestions.slice(-5).map((text) => `- ${text}`),
     );
+  });
+});
+
+describe("isSimilarSuggestion", () => {
+  const previous = ["最近見た映画で面白かったものはありますか？"];
+
+  it("detects an identical suggestion", () => {
+    expect(isSimilarSuggestion(previous[0], previous)).toBe(true);
+  });
+
+  it("detects a paraphrase of a recent suggestion", () => {
+    expect(
+      isSimilarSuggestion("最近見た映画で面白かったものは何ですか？", previous),
+    ).toBe(true);
+  });
+
+  it("accepts a different topic", () => {
+    expect(
+      isSimilarSuggestion("週末はどこかに出かける予定はありますか？", previous),
+    ).toBe(false);
+  });
+
+  it("accepts anything when there is no history", () => {
+    expect(isSimilarSuggestion(previous[0], [])).toBe(false);
   });
 });

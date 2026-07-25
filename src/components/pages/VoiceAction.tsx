@@ -7,6 +7,10 @@ import BackLink from "@/components/atoms/BackLink";
 const MODEL_ID = "gemma-2-2b-jpn-it-q4f16_1-MLC";
 const SILENCE_MS = 5_000;
 const SUGGESTION_HISTORY_SIZE = 5;
+// 直近の提案との bigram Jaccard 係数がこれ以上なら「同じ話題」とみなして再生成する。
+const SUGGESTION_SIMILARITY_THRESHOLD = 0.5;
+const SUGGESTION_TEMPERATURE = 0.9;
+const SUGGESTION_RETRY_TEMPERATURE = 1.1;
 const DB_NAME = "voice-action";
 const STORE_NAME = "utterances";
 
@@ -106,6 +110,69 @@ export function suggestionHistoryForPrompt(suggestions: string[]) {
     .join("\n");
 }
 
+function bigrams(text: string) {
+  const normalized = text.replace(/[\s、。，．!！?？「」『』()（）]/g, "");
+  return new Set(
+    Array.from({ length: Math.max(normalized.length - 1, 0) }, (_, index) =>
+      normalized.slice(index, index + 2),
+    ),
+  );
+}
+
+/** 言い換えを含めて直近の提案と重複しているかを判定する。 */
+// eslint-disable-next-line react-refresh/only-export-components
+export function isSimilarSuggestion(text: string, previous: string[]) {
+  const target = bigrams(text);
+  if (target.size === 0) return false;
+  return previous.some((suggestion) => {
+    const other = bigrams(suggestion);
+    if (other.size === 0) return false;
+    const shared = [...target].filter((gram) => other.has(gram)).length;
+    const union = target.size + other.size - shared;
+    return shared / union >= SUGGESTION_SIMILARITY_THRESHOLD;
+  });
+}
+
+const SYSTEM_PROMPT = `あなたは、会話が楽しく自然に続くように次の話題を提案するアシスタントです。入力には音声認識の誤変換が含まれる可能性があります。
+
+会話の流れに応じて、次のいずれかを選んでください。
+・今の話題を少しだけ深める
+・関連する別の話題へ横に広げる
+・一区切りついた話題から、身近で答えやすい新しい話題へ切り替える
+
+同じ話題への質問が続いている場合は、深掘りせず話題を広げるか切り替えてください。「なぜ」「理由」「具体的には」と繰り返し尋ねないでください。相手の考えや個人的な事情を追及する質問よりも、気軽に話せる体験、好み、最近の出来事、周辺の話題を優先してください。
+
+直近の提案が入力に含まれる場合は、それらと同じ内容や言い換えを避け、別の観点または別の話題を提案してください。
+
+会話にない人物・出来事・固有名詞は作らないでください。ただし、一般的な話題を新しく提案することはできます。内容が多少不明瞭でも、聞き取れた範囲から自然に話題を提案してください。意味を判断できない場合に限り、短い確認質問をしてください。
+
+次に話せる内容を、日本語で自然な一文として1つだけ返してください。前置きや箇条書きは不要です。`;
+
+async function requestSuggestion(
+  engine: MLCEngineInterface,
+  transcript: string,
+  previousSuggestions: string,
+  temperature: number,
+) {
+  const response = await engine.chat.completions.create({
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: previousSuggestions
+          ? `会話ログ:\n${transcript}\n\n直近の提案（重複禁止）:\n${previousSuggestions}`
+          : transcript,
+      },
+    ],
+    max_tokens: 80,
+    temperature,
+  });
+  return (
+    response.choices[0]?.message.content?.trim() ||
+    "最近、気になっていることはありますか？"
+  );
+}
+
 function errorMessage(error: string) {
   if (error === "not-allowed" || error === "service-not-allowed") {
     return "マイクの使用が許可されていません。ブラウザの設定を確認してください。";
@@ -167,46 +234,30 @@ export default function VoiceAction() {
     setIsSuggesting(true);
     setSuggestion("");
     try {
-      const response = await engine.chat.completions.create({
-        messages: [
-          {
-            role: "system",
-            content:
-              `あなたは、会話が楽しく自然に続くように次の話題を提案するアシスタントです。入力には音声認識の誤変換が含まれる可能性があります。
-
-              会話の流れに応じて、次のいずれかを選んでください。
-              ・今の話題を少しだけ深める
-              ・関連する別の話題へ横に広げる
-              ・一区切りついた話題から、身近で答えやすい新しい話題へ切り替える
-
-              同じ話題への質問が続いている場合は、深掘りせず話題を広げるか切り替えてください。「なぜ」「理由」「具体的には」と繰り返し尋ねないでください。相手の考えや個人的な事情を追及する質問よりも、気軽に話せる体験、好み、最近の出来事、周辺の話題を優先してください。
-
-              直近の提案が入力に含まれる場合は、それらと同じ内容や言い換えを避け、別の観点または別の話題を提案してください。
-
-              会話にない人物・出来事・固有名詞は作らないでください。ただし、一般的な話題を新しく提案することはできます。内容が多少不明瞭でも、聞き取れた範囲から自然に話題を提案してください。意味を判断できない場合に限り、短い確認質問をしてください。
-
-              次に話せる内容を、日本語で自然な一文として1つだけ返してください。前置きや箇条書きは不要です。`
-          },
-          {
-            role: "user",
-            content: previousSuggestions
-              ? `会話ログ:\n${transcript}\n\n直近の提案（重複禁止）:\n${previousSuggestions}`
-              : transcript,
-          },
-        ],
-        max_tokens: 80,
-        temperature: 0.2,
-      });
-      if (generation === generationRef.current) {
-        const nextSuggestion =
-          response.choices[0]?.message.content?.trim() ||
-          "最近、気になっていることはありますか？";
-        suggestionHistoryRef.current = [
-          ...suggestionHistoryRef.current,
-          nextSuggestion,
-        ].slice(-SUGGESTION_HISTORY_SIZE);
-        setSuggestion(nextSuggestion);
+      let nextSuggestion = await requestSuggestion(
+        engine,
+        transcript,
+        previousSuggestions,
+        SUGGESTION_TEMPERATURE,
+      );
+      // プロンプトの「重複禁止」だけでは小型モデルが従わないため、コード側で判定して引き直す。
+      if (
+        isSimilarSuggestion(nextSuggestion, suggestionHistoryRef.current) &&
+        generation === generationRef.current
+      ) {
+        nextSuggestion = await requestSuggestion(
+          engine,
+          transcript,
+          previousSuggestions,
+          SUGGESTION_RETRY_TEMPERATURE,
+        );
       }
+      // 表示を破棄する場合でも履歴には必ず残す。残さないと同じ提案が再生成され続ける。
+      suggestionHistoryRef.current = [
+        ...suggestionHistoryRef.current,
+        nextSuggestion,
+      ].slice(-SUGGESTION_HISTORY_SIZE);
+      if (generation === generationRef.current) setSuggestion(nextSuggestion);
     } catch {
       setNotice("話題を生成できませんでした。モデルを再準備してください。");
       setModelStatus("error");
