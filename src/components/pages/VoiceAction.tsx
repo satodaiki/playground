@@ -9,8 +9,20 @@ const SILENCE_MS = 5_000;
 const SUGGESTION_HISTORY_SIZE = 5;
 // 直近の提案との bigram Jaccard 係数がこれ以上なら「同じ話題」とみなして再生成する。
 const SUGGESTION_SIMILARITY_THRESHOLD = 0.5;
-const SUGGESTION_TEMPERATURE = 0.9;
-const SUGGESTION_RETRY_TEMPERATURE = 1.1;
+// 温度だけを上げると 2B 量子化モデルは分布の裾から外国語トークンを拾う。top_p で裾を切る。
+const SUGGESTION_TEMPERATURE = 0.7;
+const SUGGESTION_TOP_P = 0.9;
+const FALLBACK_SUGGESTION = "最近、気になっていることはありますか？";
+// 小型モデルは「重複禁止」のような否定指示に弱く、並べた提案にかえって引きずられる。
+// 毎回ちがう切り口を肯定形で指定して、構造的に別の話題へ寄せる。
+const SUGGESTION_ANGLES = [
+  "直前の話題に関連する、最近の出来事や体験",
+  "相手の好みや、好きなもの",
+  "季節や時期にちなんだ、身近な話題",
+  "食べ物・お店・場所など、暮らしまわりのこと",
+  "これからの予定や、やってみたいこと",
+  "ふだんの習慣や、ちょっとした息抜き",
+];
 const DB_NAME = "voice-action";
 const STORE_NAME = "utterances";
 
@@ -119,6 +131,12 @@ function bigrams(text: string) {
   );
 }
 
+/** アクセント付きラテン文字・ギリシャ文字・キリル文字を含むか（生成崩れの検出用）。 */
+// eslint-disable-next-line react-refresh/only-export-components
+export function hasForeignScript(text: string) {
+  return /[À-ɏͰ-ӿ]/.test(text);
+}
+
 /** 言い換えを含めて直近の提案と重複しているかを判定する。 */
 // eslint-disable-next-line react-refresh/only-export-components
 export function isSimilarSuggestion(text: string, previous: string[]) {
@@ -142,35 +160,38 @@ const SYSTEM_PROMPT = `あなたは、会話が楽しく自然に続くように
 
 同じ話題への質問が続いている場合は、深掘りせず話題を広げるか切り替えてください。「なぜ」「理由」「具体的には」と繰り返し尋ねないでください。相手の考えや個人的な事情を追及する質問よりも、気軽に話せる体験、好み、最近の出来事、周辺の話題を優先してください。
 
-直近の提案が入力に含まれる場合は、それらと同じ内容や言い換えを避け、別の観点または別の話題を提案してください。
+「今回の切り口」が指定された場合は、必ずその切り口に沿った話題を提案してください。「直近の提案」が並んでいる場合は、それらとは別の話題にしてください。
 
 会話にない人物・出来事・固有名詞は作らないでください。ただし、一般的な話題を新しく提案することはできます。内容が多少不明瞭でも、聞き取れた範囲から自然に話題を提案してください。意味を判断できない場合に限り、短い確認質問をしてください。
 
-次に話せる内容を、日本語で自然な一文として1つだけ返してください。前置きや箇条書きは不要です。`;
+出力は必ず日本語だけで書き、外国語の単語を混ぜないでください。次に話せる内容を、自然な一文として1つだけ返してください。前置きや箇条書きは不要です。`;
 
 async function requestSuggestion(
   engine: MLCEngineInterface,
   transcript: string,
   previousSuggestions: string,
-  temperature: number,
+  angle: string,
 ) {
   const response = await engine.chat.completions.create({
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       {
         role: "user",
-        content: previousSuggestions
-          ? `会話ログ:\n${transcript}\n\n直近の提案（重複禁止）:\n${previousSuggestions}`
-          : transcript,
+        content: [
+          `会話ログ:\n${transcript}`,
+          previousSuggestions &&
+            `直近の提案（重複禁止）:\n${previousSuggestions}`,
+          `今回の切り口: ${angle}`,
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
       },
     ],
     max_tokens: 80,
-    temperature,
+    temperature: SUGGESTION_TEMPERATURE,
+    top_p: SUGGESTION_TOP_P,
   });
-  return (
-    response.choices[0]?.message.content?.trim() ||
-    "最近、気になっていることはありますか？"
-  );
+  return response.choices[0]?.message.content?.trim() || FALLBACK_SUGGESTION;
 }
 
 function errorMessage(error: string) {
@@ -202,6 +223,7 @@ export default function VoiceAction() {
   const enginePromiseRef = useRef<Promise<MLCEngineInterface> | null>(null);
   const pendingSuggestionRef = useRef(false);
   const generationRef = useRef(0);
+  const angleIndexRef = useRef(0);
 
   useEffect(() => {
     void readUtterances()
@@ -231,6 +253,8 @@ export default function VoiceAction() {
     }
 
     const generation = ++generationRef.current;
+    const nextAngle = () =>
+      SUGGESTION_ANGLES[angleIndexRef.current++ % SUGGESTION_ANGLES.length];
     setIsSuggesting(true);
     setSuggestion("");
     try {
@@ -238,20 +262,23 @@ export default function VoiceAction() {
         engine,
         transcript,
         previousSuggestions,
-        SUGGESTION_TEMPERATURE,
+        nextAngle(),
       );
-      // プロンプトの「重複禁止」だけでは小型モデルが従わないため、コード側で判定して引き直す。
+      // プロンプトだけでは小型モデルが従わないため、コード側で判定して次の切り口で引き直す。
       if (
-        isSimilarSuggestion(nextSuggestion, suggestionHistoryRef.current) &&
+        (isSimilarSuggestion(nextSuggestion, suggestionHistoryRef.current) ||
+          hasForeignScript(nextSuggestion)) &&
         generation === generationRef.current
       ) {
         nextSuggestion = await requestSuggestion(
           engine,
           transcript,
           previousSuggestions,
-          SUGGESTION_RETRY_TEMPERATURE,
+          nextAngle(),
         );
       }
+      // 引き直しても崩れた出力なら、外国語混じりの文を出すより定型文のほうがまし。
+      if (hasForeignScript(nextSuggestion)) nextSuggestion = FALLBACK_SUGGESTION;
       // 表示を破棄する場合でも履歴には必ず残す。残さないと同じ提案が再生成され続ける。
       suggestionHistoryRef.current = [
         ...suggestionHistoryRef.current,

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   conversationForPrompt,
+  hasForeignScript,
   isSimilarSuggestion,
   suggestionHistoryForPrompt,
 } from "@/components/pages/VoiceAction";
@@ -56,5 +57,25 @@ describe("isSimilarSuggestion", () => {
 
   it("accepts anything when there is no history", () => {
     expect(isSimilarSuggestion(previous[0], [])).toBe(false);
+  });
+});
+
+describe("hasForeignScript", () => {
+  it("detects an accented latin word leaking into japanese", () => {
+    expect(hasForeignScript("最近の、新しい régime は？")).toBe(true);
+  });
+
+  it("detects cyrillic", () => {
+    expect(hasForeignScript("最近の привет は？")).toBe(true);
+  });
+
+  it("accepts plain japanese", () => {
+    expect(hasForeignScript("週末はどこかに出かける予定はありますか？")).toBe(
+      false,
+    );
+  });
+
+  it("accepts japanese mixed with plain ascii", () => {
+    expect(hasForeignScript("最近はPCやWi-Fiの調子はどうですか？")).toBe(false);
   });
 });
