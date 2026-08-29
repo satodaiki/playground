@@ -1,6 +1,15 @@
 # ---------------------------------------------
 # Providers
 # ---------------------------------------------
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.28.0"
+    }
+  }
+}
+
 # デフォルト（東京リージョン）: S3などのリソース用
 provider "aws" {
   region = "ap-northeast-1"
@@ -27,10 +36,51 @@ variable "project_name" {
   type = string
 }
 
+variable "google_client_id" {
+  type      = string
+  sensitive = true
+}
+
+variable "google_client_secret" {
+  type      = string
+  sensitive = true
+}
+
+variable "openai_api_key" {
+  type      = string
+  sensitive = true
+}
+
+variable "oauth_state_secret" {
+  type      = string
+  sensitive = true
+
+  validation {
+    condition     = length(var.oauth_state_secret) >= 32
+    error_message = "oauth_state_secret must contain at least 32 characters."
+  }
+}
+
+variable "subscription_scanner_extra_origins" {
+  type    = list(string)
+  default = []
+}
+
+variable "subscription_scanner_max_messages" {
+  type    = number
+  default = 100
+
+  validation {
+    condition     = var.subscription_scanner_max_messages >= 1 && var.subscription_scanner_max_messages <= 100
+    error_message = "subscription_scanner_max_messages must be between 1 and 100."
+  }
+}
+
 # バケット名は世界で一意になるようにドメイン名を含めると良いです
 locals {
-  fqdn        = "${var.sub_domain_name}.${var.root_domain}"
-  bucket_name = "${var.project_name}-${var.sub_domain_name}-${var.root_domain}-bucket"
+  fqdn                         = "${var.sub_domain_name}.${var.root_domain}"
+  bucket_name                  = "${var.project_name}-${var.sub_domain_name}-${var.root_domain}-bucket"
+  subscription_scanner_origins = concat(["https://${local.fqdn}"], var.subscription_scanner_extra_origins)
 }
 
 # ---------------------------------------------
@@ -206,6 +256,63 @@ resource "aws_route53_record" "www" {
 }
 
 # ---------------------------------------------
+# Subscription Scanner (Lambda Function URL)
+# ---------------------------------------------
+data "archive_file" "subscription_scanner" {
+  type        = "zip"
+  source_file = "${path.module}/../backend/subscription_scanner/lambda_function.py"
+  output_path = "${path.module}/.terraform/subscription-scanner.zip"
+}
+
+resource "aws_iam_role" "subscription_scanner" {
+  name = "${var.project_name}-subscription-scanner"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "lambda.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "subscription_scanner_logs" {
+  role       = aws_iam_role.subscription_scanner.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_lambda_function" "subscription_scanner" {
+  function_name                  = "${var.project_name}-subscription-scanner"
+  filename                       = data.archive_file.subscription_scanner.output_path
+  source_code_hash               = data.archive_file.subscription_scanner.output_base64sha256
+  role                           = aws_iam_role.subscription_scanner.arn
+  handler                        = "lambda_function.lambda_handler"
+  runtime                        = "python3.12"
+  memory_size                    = 512
+  timeout                        = 120
+  reserved_concurrent_executions = 5
+
+  environment {
+    variables = {
+      ALLOWED_ORIGINS      = join(",", local.subscription_scanner_origins)
+      GOOGLE_CLIENT_ID     = var.google_client_id
+      GOOGLE_CLIENT_SECRET = var.google_client_secret
+      MAX_MESSAGES         = tostring(var.subscription_scanner_max_messages)
+      OAUTH_STATE_SECRET   = var.oauth_state_secret
+      OPENAI_API_KEY       = var.openai_api_key
+    }
+  }
+}
+
+resource "aws_lambda_function_url" "subscription_scanner" {
+  # AWS provider 6.28+ adds both public Function URL permissions for NONE auth.
+  function_name      = aws_lambda_function.subscription_scanner.function_name
+  authorization_type = "NONE"
+}
+
+# ---------------------------------------------
 # Outputs
 # ---------------------------------------------
 output "website_url" {
@@ -214,4 +321,12 @@ output "website_url" {
 
 output "s3_bucket_name" {
   value = aws_s3_bucket.static_site.id
+}
+
+output "subscription_scanner_function_url" {
+  value = aws_lambda_function_url.subscription_scanner.function_url
+}
+
+output "subscription_scanner_oauth_callback_url" {
+  value = "${trimsuffix(aws_lambda_function_url.subscription_scanner.function_url, "/")}/oauth/callback"
 }

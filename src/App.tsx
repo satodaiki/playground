@@ -9,6 +9,7 @@ import FreeHaiku from "@/components/pages/FreeHaiku";
 import LeapToFreedom from "@/components/pages/LeapToFreedom";
 import FreeBirds from "@/components/pages/FreeBirds";
 import VoiceAction from "@/components/pages/VoiceAction";
+import SubscriptionScanner from "@/components/pages/SubscriptionScanner";
 import SlidesLink from "@/components/atoms/SlidesLink";
 import "@/App.css";
 
@@ -65,6 +66,13 @@ const PROJECTS = [
       "会話を記録し、5秒の沈黙をきっかけにWebLLMが次の話題を提案。会話は端末内だけに保存します。",
     path: "/voice-action",
   },
+  {
+    id: "subscription-scanner",
+    title: "サブスク・スキャナー",
+    description:
+      "Google連携だけで、Gmailの請求メールから忘れていたサブスクと年間の見直し余地を自動発見します。",
+    path: "/subscription-scanner",
+  },
   // {
   //   id: 'insider',
   //   title: 'インサイダー',
@@ -103,14 +111,14 @@ const ProjectCard = ({ project }: { project: (typeof PROJECTS)[0] }) => (
     <p className="mb-4 text-sm leading-relaxed text-gray-600 dark:text-gray-400">
       {project.description}
     </p>
-    <Link href={project.path}>
-      {/* aタグを直接使用し、Tailwindのスタイルを適用 */}
-      <a className="inline-flex items-center font-semibold text-indigo-600 transition-colors duration-300 group-hover:text-indigo-500 dark:text-indigo-400 dark:group-hover:text-indigo-300">
-        作品を見る{" "}
-        <span className="ml-1 transition-transform duration-300 group-hover:translate-x-1">
-          →
-        </span>
-      </a>
+    <Link
+      href={project.path}
+      className="inline-flex items-center font-semibold text-indigo-600 transition-colors duration-300 group-hover:text-indigo-500 dark:text-indigo-400 dark:group-hover:text-indigo-300"
+    >
+      作品を見る{" "}
+      <span className="ml-1 transition-transform duration-300 group-hover:translate-x-1">
+        →
+      </span>
     </Link>
   </div>
 );
@@ -158,6 +166,7 @@ export default function App() {
         <Route path="/leap" component={LeapToFreedom} />
         <Route path="/birds" component={FreeBirds} />
         <Route path="/voice-action" component={VoiceAction} />
+        <Route path="/subscription-scanner" component={SubscriptionScanner} />
         {/*<Route path="/insider" component={Insider} />*/}
         {/* <Route path="/wasm-terminal" component={WasmTerminal} /> */}
         {/* <Route path="/tetlis" component={Tetlis} /> */}
