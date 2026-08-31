@@ -71,8 +71,8 @@ variable "subscription_scanner_max_messages" {
   default = 100
 
   validation {
-    condition     = var.subscription_scanner_max_messages >= 1 && var.subscription_scanner_max_messages <= 100
-    error_message = "subscription_scanner_max_messages must be between 1 and 100."
+    condition     = var.subscription_scanner_max_messages >= 1 && var.subscription_scanner_max_messages <= 1000
+    error_message = "subscription_scanner_max_messages must be between 1 and 1000."
   }
 }
 

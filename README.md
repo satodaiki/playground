@@ -43,7 +43,7 @@ oauth_state_secret   = "32文字以上のランダムな値"
 
 # ローカル画面からOAuthを試す場合だけ追加
 subscription_scanner_extra_origins = ["http://localhost:5173"]
-subscription_scanner_max_messages  = 100
+subscription_scanner_max_messages  = 1000
 ```
 
 ```bash
@@ -85,7 +85,7 @@ npm run dev:fast
 - 本アプリはアクセストークンとメール本文をLambdaのメモリ内だけで使い、DB・S3・ブラウザストレージへ保存しません。
 - Lambdaはトークン、認可コード、メール本文をログ出力しません。
 - OpenAIへ送るのはルールで判定できない候補メールだけです。`store: false` でResponsesの状態保存を無効化しますが、通常のAPI利用では不正利用監視ログに内容が最大30日保持される場合があります。外部サービス側にも保持させない要件では、OpenAIの承認を受けたZero Data Retentionプロジェクトを使用してください。
-- 1回の走査件数はLambdaの実行時間を守るため最大100件です。`subscription_scanner_max_messages` で1〜100件に変更できます。
+- 1回の走査件数は最大1,000件です。`subscription_scanner_max_messages` で1〜1,000件に変更できます。
 
 ### テスト
 

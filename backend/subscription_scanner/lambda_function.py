@@ -33,8 +33,8 @@ OPENAI_MODEL = "gpt-5.6-luna"
 OPENAI_BATCH_SIZE = 20
 MAX_BODY_CHARS_FOR_AI = 4_000
 GMAIL_FETCH_WORKERS = 20
-# ponytail: keep one synchronous Function URL scan bounded; use an async job before raising this.
-MAX_SCAN_MESSAGES = 100
+# ponytail: 1,000-message synchronous scan; move to async jobs if timeouts become common.
+MAX_SCAN_MESSAGES = 1000
 
 KNOWN_SERVICES: tuple[tuple[str, tuple[str, ...], str], ...] = (
     ("Netflix", (r"(?:^|@)[\w.-]*netflix\.com\b", r"\bnetflix\b"), "monthly"),
