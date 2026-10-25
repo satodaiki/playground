@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -5,22 +6,28 @@ import { describe, expect, it, vi } from 'vitest';
 import TripPlanner from '@/components/pages/TripPlanner';
 
 vi.mock('@/components/pages/trip-planner/TripMap', () => ({
-  default: ({ stops, onRoute, onAdd }: {
+  default: ({ stops, onRoute }: {
     stops: { id: string; name: string }[];
     onRoute: (durations: number[] | null) => void;
-    onAdd: (place: { id: string; name: string; address: string; lat: number; lng: number }) => void;
   }) => (
     <div>
       <output data-testid="map-stop-order">{stops.map((stop) => stop.id).join(',')}</output>
       <button onClick={() => onRoute([10, 20, 15, 5].slice(0, stops.length - 1))}>
         徒歩時間を取得（テスト）
       </button>
-      <button onClick={() => onAdd({ id: 'station', name: '金沢駅', address: '石川県金沢市', lat: 36.578, lng: 136.648 })}>
-        場所を追加（テスト）
-      </button>
     </div>
   ),
 }));
+
+vi.mock('@/components/pages/trip-planner/PlaceSearch', async (original) => {
+  const { default: PlaceSearch } = await original<typeof import('@/components/pages/trip-planner/PlaceSearch')>();
+  return { default: (props: ComponentProps<typeof PlaceSearch>) => <>
+    <PlaceSearch {...props} />
+    <button onClick={() => props.onAdd({ id: 'station', name: '金沢駅', address: '石川県金沢市', lat: 36.578, lng: 136.648 })}>
+      場所を追加（テスト）
+    </button>
+  </> };
+});
 
 async function renderSample() {
   const view = render(<TripPlanner />);

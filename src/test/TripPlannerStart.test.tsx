@@ -7,55 +7,6 @@ import { TRIP_DRAFT_KEY } from '@/components/pages/trip-planner/draft';
 vi.mock('@/components/pages/trip-planner/TripMap', () => ({ default: () => <div>地図</div> }));
 
 describe('新しい旅の準備', () => {
-  it('入力内容に合う候補を表示し、候補から1回の操作で場所を追加できる', async () => {
-    const user = userEvent.setup();
-    render(<TripPlanner />);
-    const options = screen.getByRole('group', { name: '場所の入力候補' });
-    expect(within(options).getAllByRole('button')).toHaveLength(6);
-    await user.type(screen.getByLabelText('最初に行きたい場所は？'), '京都');
-    expect(within(options).getByRole('button', { name: '京都駅を旅程に追加' })).toBeInTheDocument();
-    expect(within(options).getByRole('button', { name: '京都タワーを旅程に追加' })).toBeInTheDocument();
-    expect(within(options).queryByRole('button', { name: '東京駅を旅程に追加' })).not.toBeInTheDocument();
-    await user.click(within(options).getByRole('button', { name: '京都駅を旅程に追加' }));
-    expect(screen.getByRole('button', { name: '京都駅、滞在45分' })).toBeInTheDocument();
-    expect(screen.getByLabelText('次に行きたい場所は？')).toHaveValue('');
-    expect(screen.getByLabelText('次に行きたい場所は？')).toHaveFocus();
-  });
-
-  it('新しい旅程や再表示でも入力履歴を候補にでき、履歴だけを消せる', async () => {
-    const user = userEvent.setup();
-    const view = render(<TripPlanner />);
-    await user.type(screen.getByLabelText('最初に行きたい場所は？'), '姫路城');
-    expect(screen.getByText(/一致する候補はありません/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: '場所を追加' }));
-    await user.click(screen.getByRole('button', { name: '新しい旅程を作る' }));
-    await user.click(screen.getByRole('button', { name: '空の旅程に切り替える' }));
-    view.unmount();
-    render(<TripPlanner />);
-    const suggestion = screen.getByRole('button', { name: '姫路城を旅程に追加' });
-    expect(within(suggestion).getByText('履歴')).toBeInTheDocument();
-    await user.click(suggestion);
-    await user.click(screen.getByRole('button', { name: '履歴を消す' }));
-    expect(screen.getByRole('button', { name: '姫路城、滞在45分' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '姫路城を旅程に追加' })).not.toBeInTheDocument();
-  });
-
-  it.each(['壊れたJSON', JSON.stringify([null, 42, {}, '   ', '清水寺'])])('候補の履歴データが不正でも場所を追加できる: %s', async (history) => {
-    localStorage.setItem('trip-planner:recent-places:v1', history);
-    const user = userEvent.setup();
-    render(<TripPlanner />);
-    await user.click(screen.getByRole('button', { name: '京都駅を旅程に追加' }));
-    expect(screen.getByRole('button', { name: '京都駅、滞在45分' })).toBeInTheDocument();
-  });
-
-  it('候補は英字の大小文字と全角・半角を区別せず絞り込む', async () => {
-    localStorage.setItem('trip-planner:recent-places:v1', JSON.stringify(['KYOTO CAFE']));
-    const user = userEvent.setup();
-    render(<TripPlanner />);
-    await user.type(screen.getByLabelText('最初に行きたい場所は？'), 'ｋｙｏｔｏ');
-    expect(screen.getByRole('button', { name: 'KYOTO CAFEを旅程に追加' })).toBeInTheDocument();
-  });
-
   it('追加した場所をリネームでき、時間・移動・IDを保ったまま名前と検索先を保存する', async () => {
     const user = userEvent.setup();
     const view = render(<TripPlanner />);
@@ -79,8 +30,6 @@ describe('新しい旅の準備', () => {
     const saved = JSON.parse(localStorage.getItem(TRIP_DRAFT_KEY)!);
     expect(saved.stops[0]).toMatchObject({ id: before.stops[0].id, name: '京都駅', address: '京都駅', duration: 60 });
     expect(saved.manualTravel).toEqual(before.manualTravel);
-    expect(screen.queryByRole('button', { name: '京と駅を旅程に追加' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '京都駅を旅程に追加' })).toBeInTheDocument();
 
     view.unmount();
     render(<TripPlanner />);

@@ -31,7 +31,7 @@ export type GoogleMaps = {
   marker: {
     AdvancedMarkerElement: new (options: Record<string, unknown>) => MapMarker;
   };
-  places: { PlaceAutocompleteElement: new () => HTMLElement };
+  places: { PlaceAutocompleteElement: new () => HTMLElement & { value: string } };
   routes: {
     Route: {
       computeRoutes(request: Record<string, unknown>): Promise<{

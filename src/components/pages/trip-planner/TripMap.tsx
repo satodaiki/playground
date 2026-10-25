@@ -1,19 +1,17 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { hasCoordinates, loadGoogleMaps, placeUrl, walkingUrl } from './maps';
-import type { GoogleMaps, MapInstance, MapMarker, MapPolyline, Place, PlaceSelectEvent } from './maps';
+import type { GoogleMaps, MapInstance, MapMarker, MapPolyline, Place } from './maps';
 
 type Props = {
   stops: Place[];
   selectedId: string | null;
   onSelect(id: string): void;
-  onAdd(place: Place): void;
   onRoute(durations: number[] | null): void;
 };
 
-export default function TripMap({ stops, selectedId, onSelect, onAdd, onRoute }: Props) {
+export default function TripMap({ stops, selectedId, onSelect, onRoute }: Props) {
   const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
   const canvas = useRef<HTMLDivElement>(null);
-  const search = useRef<HTMLDivElement>(null);
   const map = useRef<MapInstance | null>(null);
   const pins = useRef<{ id: string; element: HTMLButtonElement }[]>([]);
   const [sdk, setSdk] = useState<GoogleMaps | null>(null);
@@ -21,7 +19,6 @@ export default function TripMap({ stops, selectedId, onSelect, onAdd, onRoute }:
   const [notice, setNotice] = useState(key ? '地図を読み込み中…' : '地図連携は未接続です。Google Maps で場所と徒歩経路を確認できます。');
   const [warnings, setWarnings] = useState<string[]>([]);
   const select = useEffectEvent(onSelect);
-  const add = useEffectEvent(onAdd);
   const updateRoute = useEffectEvent(onRoute);
   const readStops = useEffectEvent(() => stops);
   const locations = JSON.stringify(stops.map(({ id, name, address, lat, lng }) => ({ id, name, address, lat, lng })));
@@ -33,41 +30,17 @@ export default function TripMap({ stops, selectedId, onSelect, onAdd, onRoute }:
   useEffect(() => {
     if (!key) return;
     let cancelled = false;
-    let autocomplete: HTMLElement | undefined;
-    let selectPlace: EventListener | undefined;
-    let searchError: EventListener | undefined;
     const start = async () => {
       try {
         const google = await loadGoogleMaps(key);
-        await Promise.all(['maps', 'marker', 'places', 'routes'].map((library) => google.importLibrary(library)));
-        if (cancelled || !canvas.current || !search.current) return;
+        await Promise.all(['maps', 'marker', 'routes'].map((library) => google.importLibrary(library)));
+        if (cancelled || !canvas.current) return;
         map.current = new google.Map(canvas.current, {
           center: { lat: 36.5641, lng: 136.6594 }, zoom: 14,
           // shortcut: Google's demo map ID is sufficient for this prototype; use an owned map ID before production styling.
           mapId: 'DEMO_MAP_ID', mapTypeControl: false, streetViewControl: false,
           fullscreenControl: false,
         });
-        autocomplete = new google.places.PlaceAutocompleteElement();
-        autocomplete.setAttribute('aria-label', '行き先を検索して追加');
-        search.current.replaceChildren(autocomplete);
-        selectPlace = (event) => {
-          void (async () => {
-            try {
-              const place = (event as PlaceSelectEvent).placePrediction.toPlace();
-              await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location'] });
-              if (cancelled) return;
-              const lat = place.location?.lat();
-              const lng = place.location?.lng();
-              if (lat === undefined || lng === undefined || !Number.isFinite(lat) || !Number.isFinite(lng)) throw new Error('Missing location');
-              add({ id: place.id, name: place.displayName || place.formattedAddress || '追加した場所', address: place.formattedAddress || '', lat, lng });
-            } catch {
-              if (!cancelled) setNotice('場所を取得できませんでした。別の候補を選ぶか、もう一度お試しください。');
-            }
-          })();
-        };
-        searchError = () => setNotice('場所を検索できませんでした。Google Maps で場所を確認できます。');
-        autocomplete.addEventListener('gmp-select', selectPlace);
-        autocomplete.addEventListener('gmp-error', searchError);
         setSdk(google);
       } catch {
         if (!cancelled) {
@@ -80,9 +53,6 @@ export default function TripMap({ stops, selectedId, onSelect, onAdd, onRoute }:
     void start();
     return () => {
       cancelled = true;
-      if (selectPlace) autocomplete?.removeEventListener('gmp-select', selectPlace);
-      if (searchError) autocomplete?.removeEventListener('gmp-error', searchError);
-      autocomplete?.remove();
       map.current = null;
     };
   }, [key]);
@@ -166,7 +136,6 @@ export default function TripMap({ stops, selectedId, onSelect, onAdd, onRoute }:
 
   return (
     <div className="tp-map">
-      {key && !failed && <div ref={search} className="tp-place-search" />}
       <p className="tp-map-notice" role="status">{notice}</p>
       <div ref={canvas} className="tp-map-canvas" hidden={fallback} />
       {fallback && (
