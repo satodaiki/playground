@@ -41,6 +41,7 @@ describe('LeapToFreedom', () => {
     render(<LeapToFreedom />);
 
     const start = await screen.findByRole('button', { name: 'START' });
+    await waitFor(() => expect(start).toBeEnabled());
     await user.click(start);
 
     expect(await screen.findByRole('button', { name: /FLIP GRAVITY/ })).toBeInTheDocument();

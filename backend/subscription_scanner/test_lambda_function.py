@@ -47,7 +47,10 @@ class RuleTest(unittest.TestCase):
         }
 
         email = app.parse_gmail_message(message)
-        matched, subscription, cancelled_service = app.classify_known(email)
+        # Keep the receipt within the monthly billing window regardless of the test run date.
+        with patch.object(app, "datetime", wraps=datetime) as clock:
+            clock.now.return_value = datetime(2026, 8, 21, tzinfo=timezone.utc)
+            matched, subscription, cancelled_service = app.classify_known(email)
 
         self.assertTrue(matched)
         self.assertIsNone(cancelled_service)
