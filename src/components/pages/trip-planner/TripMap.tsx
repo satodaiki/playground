@@ -175,7 +175,7 @@ export default function TripMap({ stops, selectedId, onSelect, onAdd, onRoute }:
               </g>;
             })}
           </svg>
-          <figcaption>{located.length ? '地点の位置関係（経路未取得）' : '地点の位置は未取得です。下のリンクから Google Maps で確認できます。'}</figcaption>
+          <figcaption>{!stops.length ? '行きたい場所を追加すると、ここで旅のつながりを確認できます。' : located.length ? '地点の位置関係（経路未取得）' : '地点の位置は未取得です。下のリンクから Google Maps で確認できます。'}</figcaption>
         </figure>
       )}
       {warnings.map((warning, index) => <p className="tp-map-notice" key={index}>{warning}</p>)}
