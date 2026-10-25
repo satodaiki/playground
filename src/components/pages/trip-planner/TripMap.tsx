@@ -23,7 +23,12 @@ export default function TripMap({ stops, selectedId, onSelect, onAdd, onRoute }:
   const select = useEffectEvent(onSelect);
   const add = useEffectEvent(onAdd);
   const updateRoute = useEffectEvent(onRoute);
+  const readStops = useEffectEvent(() => stops);
   const locations = JSON.stringify(stops.map(({ id, name, address, lat, lng }) => ({ id, name, address, lat, lng })));
+  const routeLocations = JSON.stringify(stops.map((stop) => ({
+    id: stop.id,
+    location: hasCoordinates(stop) ? { lat: stop.lat, lng: stop.lng } : stop.address || stop.name,
+  })));
 
   useEffect(() => {
     if (!key) return;
@@ -84,7 +89,7 @@ export default function TripMap({ stops, selectedId, onSelect, onAdd, onRoute }:
 
   useEffect(() => {
     if (!sdk || !map.current) return;
-    const points = JSON.parse(locations) as Place[];
+    const points = readStops();
     let cancelled = false;
     const markers: MapMarker[] = [];
     let polylines: MapPolyline[] = [];
@@ -136,14 +141,17 @@ export default function TripMap({ stops, selectedId, onSelect, onAdd, onRoute }:
       polylines.forEach((line) => line.setMap(null));
       pins.current.forEach(({ element }) => { element.onclick = null; });
     };
-  }, [sdk, locations]);
+  }, [sdk, routeLocations]);
 
   useEffect(() => {
+    const points = JSON.parse(locations) as Place[];
     pins.current.forEach(({ id, element }) => {
+      const index = points.findIndex((stop) => stop.id === id);
+      if (index >= 0) element.setAttribute('aria-label', `${index + 1} ${points[index].name}を選択`);
       element.classList.toggle('is-selected', id === selectedId);
       element.setAttribute('aria-pressed', String(id === selectedId));
     });
-    const selected = (JSON.parse(locations) as Place[]).find((stop) => stop.id === selectedId);
+    const selected = points.find((stop) => stop.id === selectedId);
     if (selected && hasCoordinates(selected)) map.current?.panTo(selected);
   }, [selectedId, locations, sdk]);
 

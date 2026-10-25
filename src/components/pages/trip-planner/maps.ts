@@ -76,7 +76,8 @@ export function loadGoogleMaps(key: string): Promise<GoogleMaps> {
 }
 
 export function placeUrl(place: Place): string {
-  return `https://www.google.com/maps/search/?${new URLSearchParams({ api: '1', query: `${place.name} ${place.address}` })}`;
+  const query = hasCoordinates(place) ? `${place.lat},${place.lng}` : `${place.name} ${place.address}`;
+  return `https://www.google.com/maps/search/?${new URLSearchParams({ api: '1', query })}`;
 }
 
 export function hasCoordinates(place: Place): place is Place & Coordinate {

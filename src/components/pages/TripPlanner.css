@@ -123,7 +123,13 @@
 .tp-editor > h2 { font-size: 15px; margin-top: 7px; }
 .tp-selected-place { display: flex; align-items: center; gap: 11px; margin-top: 22px; }
 .tp-selected-place > span { display: grid; place-items: center; flex: 0 0 36px; height: 36px; color: var(--tp-stop-ink); background: var(--tp-stop-bg); border-radius: 10px; font-size: 12px; }
-.tp-selected-place h3 { font-size: 14px; font-weight: 600; }
+.tp-selected-place h3 { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.tp-selected-place > div { min-width: 0; }
+.tp-rename-form { margin-top: 18px; }
+.tp-rename-form label { display: block; margin-bottom: 7px; font-size: 11px; color: #697862; }
+.tp-rename-form > div { display: flex; gap: 7px; }
+.tp-rename-form input { width: 100%; font-size: 12px; }
+.tp-rename-form button { flex-shrink: 0; padding: 8px 10px; border: 1px solid #dce3d3; font-size: 11px; }
 .tp-selected-place p { color: #959c8e; font-size: 10px; margin-top: 4px; overflow-wrap: anywhere; }
 .tp-duration-label { display: block; font-size: 11px; color: #7d8876; margin-top: 22px; }
 .tp-duration-controls { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
@@ -200,6 +206,7 @@
   .tp-travel-options input,
   .tp-add-form input,
   .tp-packing-fields input,
+  .tp-rename-form input,
   .tp-custom-packing input { font-size: 16px; }
   .tp-shell { padding: 0 20px; }
   .tp-header { min-height: 70px; gap: 12px; }

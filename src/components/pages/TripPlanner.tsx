@@ -7,6 +7,7 @@ import TripMap from './trip-planner/TripMap';
 import PackingChecklist from './trip-planner/PackingChecklist';
 import { emptyTrip, loadTripDraft, saveTripDraft } from './trip-planner/draft';
 import type { Stop } from './trip-planner/draft';
+import { hasCoordinates, placeUrl } from './trip-planner/maps';
 import type { Place } from './trip-planner/maps';
 import './TripPlanner.css';
 
@@ -102,6 +103,18 @@ export default function TripPlanner() {
     const value = Math.max(15, Math.min(240, Math.round(minutes / 15) * 15));
     setStops((current) => current.map((stop) => stop.id === id ? { ...stop, duration: value } : stop));
     setDurationDraft(String(value));
+  }
+
+  function renameStop(id: string, value: string) {
+    const name = value.trim();
+    const stop = stops.find((item) => item.id === id);
+    if (!stop || !name || name.length > 150 || name === stop.name) return;
+    const updateAddress = !hasCoordinates(stop) && stop.address === stop.name;
+    setStops((current) => current.map((item) => item.id === id
+      ? { ...item, name, address: updateAddress ? name : item.address }
+      : item));
+    if (updateAddress) setTravel(null);
+    setIsSample(false);
   }
 
   function moveStop(id: string, target: number) {
@@ -316,7 +329,21 @@ export default function TripPlanner() {
         <div className="tp-workspace">
           <section className="tp-map-panel" aria-labelledby="tp-map-title"><div className="tp-section-heading"><div><p className="tp-eyebrow">CONNECT THE DOTS</p><h2 id="tp-map-title"><MapPin size={19} aria-hidden="true" />旅のつながり</h2></div><span>移動は、徒歩で。</span></div><TripMap key={planRevision} stops={stops} selectedId={selectedId} onSelect={selectStop} onAdd={addPlace} onRoute={setTravel} /></section>
 
-          <aside className="tp-editor" aria-labelledby="tp-editor-title"><p className="tp-eyebrow">MAKE IT YOURS</p><h2 id="tp-editor-title">この場所で、どのくらい？</h2>{selected ? <><div className={`tp-selected-place tp-color-${selected.color}`}><span>{String(selectedIndex + 1).padStart(2, '0')}</span><div><h3>{selected.name}</h3><p>{selected.address}</p></div></div><label className="tp-duration-label" htmlFor="tp-duration">滞在時間（分）</label><div className="tp-duration-controls"><button aria-label="滞在時間を15分短くする" disabled={selected.duration <= 15} onClick={() => changeDuration(selected.id, selected.duration - 15)}>−</button><input id="tp-duration" type="number" min={15} max={240} step={15} value={durationDraft} onChange={(event) => { const value = event.target.value; setDurationDraft(value); const minutes = Number(value); if (value && minutes >= 15 && minutes <= 240 && minutes % 15 === 0) changeDuration(selected.id, minutes); }} onBlur={() => changeDuration(selected.id, durationDraft.trim() && Number.isFinite(Number(durationDraft)) ? Number(durationDraft) : selected.duration)} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }} /><span>分</span><button aria-label="滞在時間を15分長くする" disabled={selected.duration >= 240} onClick={() => changeDuration(selected.id, selected.duration + 15)}>＋</button></div><p className="tp-editor-hint">15分ずつ、気持ちのいい長さに。</p><div className="tp-order-controls"><button disabled={selectedIndex === 0} onClick={() => moveStop(selected.id, selectedIndex - 1)}><ArrowLeft size={15} aria-hidden="true" />ひとつ前へ</button><button disabled={selectedIndex === stops.length - 1} onClick={() => moveStop(selected.id, selectedIndex + 1)}>ひとつ後ろへ<ArrowRight size={15} aria-hidden="true" /></button></div><div className="tp-editor-links"><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${selected.name} ${selected.address}`)}`} target="_blank" rel="noreferrer">Google Mapsで見る<ArrowUpRight size={15} aria-hidden="true" /></a><button onClick={removeStop}><Trash2 size={14} aria-hidden="true" />予定から外す</button></div></> : <p className="tp-empty-editor">場所を追加すると、ここで滞在時間を調整できます。</p>}
+          <aside className="tp-editor" aria-labelledby="tp-editor-title"><p className="tp-eyebrow">MAKE IT YOURS</p><h2 id="tp-editor-title">この場所で、どのくらい？</h2>{selected ? <><div className={`tp-selected-place tp-color-${selected.color}`}><span>{String(selectedIndex + 1).padStart(2, '0')}</span><div><h3>{selected.name}</h3><p>{selected.address}</p></div></div>
+            <form key={`${planRevision}:${selected.id}`} className="tp-rename-form" onSubmit={(event) => {
+              event.preventDefault();
+              const input = event.currentTarget.querySelector('input');
+              if (!input) return;
+              const name = input.value.trim();
+              input.setCustomValidity(name && name.length <= 150 ? '' : '場所名は空白以外の文字を含む1〜150文字で入力してください。');
+              if (!input.reportValidity()) return;
+              renameStop(selected.id, name);
+              input.value = name;
+            }}>
+              <label htmlFor="tp-stop-name">場所名</label>
+              <div><input id="tp-stop-name" defaultValue={selected.name} maxLength={150} required onChange={(event) => event.currentTarget.setCustomValidity('')} /><button type="submit">名前を変更</button></div>
+            </form>
+            <label className="tp-duration-label" htmlFor="tp-duration">滞在時間（分）</label><div className="tp-duration-controls"><button aria-label="滞在時間を15分短くする" disabled={selected.duration <= 15} onClick={() => changeDuration(selected.id, selected.duration - 15)}>−</button><input id="tp-duration" type="number" min={15} max={240} step={15} value={durationDraft} onChange={(event) => { const value = event.target.value; setDurationDraft(value); const minutes = Number(value); if (value && minutes >= 15 && minutes <= 240 && minutes % 15 === 0) changeDuration(selected.id, minutes); }} onBlur={() => changeDuration(selected.id, durationDraft.trim() && Number.isFinite(Number(durationDraft)) ? Number(durationDraft) : selected.duration)} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }} /><span>分</span><button aria-label="滞在時間を15分長くする" disabled={selected.duration >= 240} onClick={() => changeDuration(selected.id, selected.duration + 15)}>＋</button></div><p className="tp-editor-hint">15分ずつ、気持ちのいい長さに。</p><div className="tp-order-controls"><button disabled={selectedIndex === 0} onClick={() => moveStop(selected.id, selectedIndex - 1)}><ArrowLeft size={15} aria-hidden="true" />ひとつ前へ</button><button disabled={selectedIndex === stops.length - 1} onClick={() => moveStop(selected.id, selectedIndex + 1)}>ひとつ後ろへ<ArrowRight size={15} aria-hidden="true" /></button></div><div className="tp-editor-links"><a href={placeUrl(selected)} target="_blank" rel="noreferrer">Google Mapsで見る<ArrowUpRight size={15} aria-hidden="true" /></a><button onClick={removeStop}><Trash2 size={14} aria-hidden="true" />予定から外す</button></div></> : <p className="tp-empty-editor">場所を追加すると、ここで滞在時間を調整できます。</p>}
 
           </aside>
         </div>

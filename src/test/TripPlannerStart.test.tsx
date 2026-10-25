@@ -7,6 +7,73 @@ import { TRIP_DRAFT_KEY } from '@/components/pages/trip-planner/draft';
 vi.mock('@/components/pages/trip-planner/TripMap', () => ({ default: () => <div>地図</div> }));
 
 describe('新しい旅の準備', () => {
+  it('追加した場所をリネームでき、時間・移動・IDを保ったまま名前と検索先を保存する', async () => {
+    const user = userEvent.setup();
+    const view = render(<TripPlanner />);
+    await user.type(screen.getByLabelText('最初に行きたい場所は？'), '京と駅');
+    await user.click(screen.getByRole('button', { name: '場所を追加' }));
+    await user.type(screen.getByLabelText('次に行きたい場所は？'), '京都タワー');
+    await user.click(screen.getByRole('button', { name: '場所を追加' }));
+    await user.click(screen.getByRole('button', { name: '京と駅から京都タワーへの移動時間を追加' }));
+    await user.click(screen.getByRole('button', { name: '京と駅、滞在45分' }));
+    fireEvent.change(screen.getByLabelText('滞在時間（分）'), { target: { value: '60' } });
+    const before = JSON.parse(localStorage.getItem(TRIP_DRAFT_KEY)!);
+
+    await user.clear(screen.getByLabelText('場所名'));
+    await user.type(screen.getByLabelText('場所名'), '  京都駅  {Enter}');
+
+    expect(screen.getByRole('button', { name: '京都駅、滞在60分' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '京都駅から京都タワーへの移動時間15分を編集' })).toBeInTheDocument();
+    expect(screen.getByTestId('trip-summary')).toHaveTextContent('11:00');
+    const link = new URL(screen.getByRole('link', { name: 'Google Mapsで見る' }).getAttribute('href')!);
+    expect(link.searchParams.get('query')).not.toContain('京と駅');
+    const saved = JSON.parse(localStorage.getItem(TRIP_DRAFT_KEY)!);
+    expect(saved.stops[0]).toMatchObject({ id: before.stops[0].id, name: '京都駅', address: '京都駅', duration: 60 });
+    expect(saved.manualTravel).toEqual(before.manualTravel);
+
+    view.unmount();
+    render(<TripPlanner />);
+    expect(screen.getByLabelText('場所名')).toHaveValue('京都駅');
+    expect(screen.getByTestId('trip-summary')).toHaveTextContent('11:00');
+  });
+
+  it.each(['', '   '])('空の名前を保存せず、入力し直してリネームできる: %j', async (name) => {
+    const user = userEvent.setup();
+    render(<TripPlanner />);
+    await user.type(screen.getByLabelText('最初に行きたい場所は？'), '京都駅');
+    await user.click(screen.getByRole('button', { name: '場所を追加' }));
+    const input = screen.getByLabelText('場所名');
+    await user.clear(input);
+    if (name) await user.type(input, name);
+    await user.click(screen.getByRole('button', { name: '名前を変更' }));
+    expect(input).toBeInvalid();
+    expect(screen.getByRole('button', { name: '京都駅、滞在45分' })).toBeInTheDocument();
+
+    await user.clear(input);
+    await user.type(input, '駅前で集合{Enter}');
+    expect(input).toBeValid();
+    expect(screen.getByRole('button', { name: '駅前で集合、滞在45分' })).toBeInTheDocument();
+  });
+
+  it('座標のある場所は住所を保ってリネームし、選択と旅程の切り替えに編集欄が追従する', async () => {
+    const user = userEvent.setup();
+    render(<TripPlanner />);
+    await user.click(screen.getByRole('button', { name: '金沢のサンプルを見る' }));
+    const before = JSON.parse(localStorage.getItem(TRIP_DRAFT_KEY)!);
+    await user.clear(screen.getByLabelText('場所名'));
+    await user.type(screen.getByLabelText('場所名'), '朝ごはん');
+    await user.click(screen.getByRole('button', { name: '名前を変更' }));
+    const saved = JSON.parse(localStorage.getItem(TRIP_DRAFT_KEY)!);
+    expect(saved.stops[0]).toEqual({ ...before.stops[0], name: '朝ごはん' });
+    expect(screen.queryByText('サンプル：金沢')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'ひがし茶屋街、滞在60分' }));
+    expect(screen.getByLabelText('場所名')).toHaveValue('ひがし茶屋街');
+    await user.click(screen.getByRole('button', { name: '朝ごはん、滞在45分' }));
+    await user.click(screen.getByRole('button', { name: '金沢のサンプルを見る' }));
+    await user.click(screen.getByRole('button', { name: 'サンプルに切り替える' }));
+    expect(screen.getByLabelText('場所名')).toHaveValue('近江町市場');
+  });
+
   it('初回は空の旅程で始まり、最初の場所を名前で追加できる', async () => {
     const user = userEvent.setup();
     render(<TripPlanner />);

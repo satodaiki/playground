@@ -76,6 +76,35 @@ describe('TripMap', () => {
     expect(onRoute).toHaveBeenLastCalledWith([3]);
   });
 
+  it('座標のある場所のリネームでは経路と取得済みの移動時間を保ち、地図のリンクを更新する', async () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'test-key');
+    const computeRoutes = mockSdk();
+    const onRoute = vi.fn();
+    const props = { stops: places, selectedId: 'a', onAdd: vi.fn(), onSelect: vi.fn(), onRoute };
+    const { rerender } = render(<TripMap {...props} />);
+    await waitFor(() => expect(onRoute).toHaveBeenLastCalledWith([2]));
+    const href = screen.getByRole('link', { name: '1. 近江町市場 ↗' }).getAttribute('href');
+    const calls = onRoute.mock.calls.length;
+
+    rerender(<TripMap {...props} stops={places.map((place, index) => index === 0 ? { ...place, name: '朝ごはん' } : place)} />);
+    expect(screen.getByRole('link', { name: '1. 朝ごはん ↗' })).toHaveAttribute('href', href);
+    expect(computeRoutes).toHaveBeenCalledTimes(1);
+    expect(onRoute).toHaveBeenCalledTimes(calls);
+  });
+
+  it('名前だけで追加した場所の訂正は、新しい検索先で経路を取得し直す', async () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'test-key');
+    const computeRoutes = mockSdk();
+    const stops: Place[] = [{ id: 'a', name: '京と駅', address: '京と駅' }, places[1]];
+    const props = { stops, selectedId: 'a', onAdd: vi.fn(), onSelect: vi.fn(), onRoute: vi.fn() };
+    const { rerender } = render(<TripMap {...props} />);
+    await waitFor(() => expect(props.onRoute).toHaveBeenLastCalledWith([2]));
+
+    rerender(<TripMap {...props} stops={[{ ...stops[0], name: '京都駅', address: '京都駅' }, stops[1]]} />);
+    await waitFor(() => expect(computeRoutes).toHaveBeenCalledTimes(2));
+    expect(computeRoutes).toHaveBeenLastCalledWith(expect.objectContaining({ origin: '京都駅' }));
+  });
+
   it('欠けた移動時間を0分として扱わず、未計算に戻す', async () => {
     vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'test-key');
     mockSdk(vi.fn().mockResolvedValue({ routes: [{ legs: [{}], createPolylines: () => [] }] }));
