@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import TripPlanner from '@/components/pages/TripPlanner';
@@ -55,9 +55,9 @@ describe('Google Placesの候補検索', () => {
 
     await screen.findByRole('button', { name: '京都駅、滞在45分' });
     expect(place.fetchFields).toHaveBeenCalledWith({ fields: ['displayName', 'formattedAddress', 'location'] });
-    expect(JSON.parse(localStorage.getItem(TRIP_DRAFT_KEY)!).stops).toEqual([
+    await waitFor(() => expect(JSON.parse(localStorage.getItem(TRIP_DRAFT_KEY)!).stops).toEqual([
       { id: 'google-kyoto', name: '京都駅', address: place.formattedAddress, lat: 34.9858, lng: 135.7588, duration: 45, color: 0 },
-    ]);
+    ]));
     expect(new URL(screen.getByRole('link', { name: 'Google Mapsで見る' }).getAttribute('href')!).searchParams.get('query')).toBe('34.9858,135.7588');
     expect(screen.getByLabelText('次に行きたい場所は？')).toHaveValue('');
     expect(screen.getByLabelText('次に行きたい場所は？')).toHaveFocus();
