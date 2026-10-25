@@ -215,9 +215,11 @@
   .tp-intro { padding: 30px 0 27px; }
   .tp-intro h1 { font-size: 25px; }
   .tp-intro h1 span { display: block; }
-  .tp-intro-stamp { flex-basis: 85px; width: 85px; height: 85px; margin-right: 5px; gap: 5px; }
-  .tp-intro-stamp svg { width: 25px; }
-  .tp-intro-stamp span { font-size: 6px; }
+  .tp-intro > div:first-child { min-width: 0; }
+  .tp-intro { gap: 12px; }
+  .tp-intro-stamp { flex: 0 0 88px; width: 88px; height: 88px; margin-right: 6px; gap: 4px; text-align: center; transform: none; }
+  .tp-intro-stamp svg { width: 25px; height: 25px; flex-shrink: 0; }
+  .tp-intro-stamp span { font-size: 6px; line-height: 1.2; white-space: nowrap; }
   .tp-intro-stamp span:last-child { font-size: 7px; }
   .tp-description { font-size: 10px; }
   .tp-plan-heading { padding: 20px 18px 16px; flex-wrap: wrap; }
