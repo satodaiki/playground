@@ -195,6 +195,12 @@
 .tp-custom-packing button { display: flex; align-items: center; gap: 4px; padding: 10px 12px; border: 1px solid #dce3d3; font-size: 12px; white-space: nowrap; cursor: pointer; }
 .tp-packing-note { font-size: 10px; line-height: 1.8; color: #697862; margin-top: 14px !important; }
 @media (max-width: 760px) {
+  /* iOS Safari の入力フォーカス時の自動ズームを防ぐ。 */
+  .tp-departure input,
+  .tp-travel-options input,
+  .tp-add-form input,
+  .tp-packing-fields input,
+  .tp-custom-packing input { font-size: 16px; }
   .tp-shell { padding: 0 20px; }
   .tp-header { min-height: 70px; gap: 12px; }
   .tp-header-note, .tp-brand > span { display: none; }
