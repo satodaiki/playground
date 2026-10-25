@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, Clock3, Footprints, GripVertical, MapPin, Plus, Route, Trash2, Undo2 } from 'lucide-react';
 import { Link } from 'wouter';
+import { readList, writeList } from '@/lib/storage';
 
 import TripMap from './trip-planner/TripMap';
 import PackingChecklist from './trip-planner/PackingChecklist';
@@ -12,6 +13,8 @@ import type { Place } from './trip-planner/maps';
 import './TripPlanner.css';
 
 const PIXELS_PER_MINUTE = 2;
+const RECENT_PLACES_KEY = 'trip-planner:recent-places:v1';
+const PLACE_EXAMPLES = ['京都駅', '京都タワー', '東京駅', '金沢駅', '白馬八方尾根スキー場', '兼六園'];
 const SAMPLE: Stop[] = [
   { id: 'omicho', name: '近江町市場', address: '石川県金沢市上近江町50', lat: 36.5712, lng: 136.6568, duration: 45, color: 0 },
   { id: 'higashi', name: 'ひがし茶屋街', address: '石川県金沢市東山1丁目', lat: 36.5726, lng: 136.6665, duration: 60, color: 1 },
@@ -48,10 +51,20 @@ export default function TripPlanner() {
   // shortcut: 削除の取り消しは直前の1件のみ。複数段階の取り消しが必要になったら履歴を持つ。
   const [removed, setRemoved] = useState<{ stop: Stop; index: number } | null>(null);
   const [placeName, setPlaceName] = useState('');
+  const [recentPlaces, setRecentPlaces] = useState(() => readList<unknown>(RECENT_PLACES_KEY)
+    .filter((name): name is string => typeof name === 'string' && name.trim().length > 0 && name.trim().length <= 150)
+    .map((name) => name.trim()).slice(0, 20));
+  const placeOptions = [...new Set([...recentPlaces, ...PLACE_EXAMPLES])];
+  const matchingPlaces = placeOptions.filter((name) => name.normalize('NFKC').toLowerCase()
+    .includes(placeName.trim().normalize('NFKC').toLowerCase())).slice(0, 6);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const resizing = useRef<{ id: string; x: number; duration: number } | null>(null);
   const placeInput = useRef<HTMLInputElement>(null);
   const timelineScroll = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    try { writeList(RECENT_PLACES_KEY, recentPlaces); }
+    catch { /* 履歴を保存できなくても、旅程の入力は続けられる。 */ }
+  }, [recentPlaces]);
   useEffect(() => {
     const saved = saveTripDraft({ stops, departure, manualTravel, isSample, packing });
     // Storage availability is an external browser state; report a failed write without interrupting editing.
@@ -114,6 +127,7 @@ export default function TripPlanner() {
       ? { ...item, name, address: updateAddress ? name : item.address }
       : item));
     if (updateAddress) setTravel(null);
+    setRecentPlaces((current) => [name, ...current.filter((recent) => recent !== stop.name && recent !== name)].slice(0, 20));
     setIsSample(false);
   }
 
@@ -137,6 +151,16 @@ export default function TripPlanner() {
     setSelectedLeg(null);
     setSelectedId(id);
     setDurationDraft('45');
+    const name = place.name.trim();
+    if (name && name.length <= 150) setRecentPlaces((current) => [name, ...current.filter((recent) => recent !== name)].slice(0, 20));
+  }
+
+  function addNamedPlace(value: string) {
+    const name = value.trim();
+    if (!name || name.length > 150) return;
+    addPlace({ id: crypto.randomUUID(), name, address: name });
+    setPlaceName('');
+    placeInput.current?.focus();
   }
 
   function removeStop() {
@@ -226,7 +250,12 @@ export default function TripPlanner() {
           {pendingPlan && <div className="tp-plan-confirm" role="group" aria-label="旅程の切り替え確認"><p>現在の旅程と持ち物リストを置き換えます。残したい内容がないか確認してください。</p><div><button className="tp-primary" onClick={() => replacePlan(pendingPlan)}>{pendingPlan === 'new' ? '空の旅程に切り替える' : 'サンプルに切り替える'}</button><button className="tp-secondary" onClick={() => setPendingPlan(null)}>キャンセル</button></div></div>}
           <div className="tp-plan-start">
             {stops.length === 0 && <div className="tp-empty-plan"><h3>まずは、行きたい場所をひとつ。</h3><p>場所を追加して、自分だけの旅程を作れます。操作を試すなら金沢のサンプルもどうぞ。</p></div>}
-            <form className="tp-add-form" onSubmit={(event) => { event.preventDefault(); const name = placeName.trim(); if (name) { addPlace({ id: crypto.randomUUID(), name, address: name }); setPlaceName(''); placeInput.current?.focus(); } }}><label htmlFor="tp-add-place">{stops.length ? '次に行きたい場所は？' : '最初に行きたい場所は？'}</label><div><input ref={placeInput} id="tp-add-place" value={placeName} maxLength={150} onChange={(event) => setPlaceName(event.target.value)} placeholder="例：京都駅、白馬のスキー場" required /><button type="submit" aria-label="場所を追加" disabled={!placeName.trim()}><Plus size={18} aria-hidden="true" /></button></div><p>{import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? '都市名と場所名で追加できます。地図の検索からも場所を選べます。' : '都市名も入れると、Google Mapsのリンクから場所を確認しやすくなります。'}</p></form>
+            <form className="tp-add-form" onSubmit={(event) => { event.preventDefault(); addNamedPlace(placeName); }}><label htmlFor="tp-add-place">{stops.length ? '次に行きたい場所は？' : '最初に行きたい場所は？'}</label><div><input ref={placeInput} id="tp-add-place" list="tp-place-options" value={placeName} maxLength={150} onChange={(event) => setPlaceName(event.target.value)} placeholder="例：京都駅、白馬のスキー場" required /><button type="submit" aria-label="場所を追加" disabled={!placeName.trim()}><Plus size={18} aria-hidden="true" /></button></div><p>{import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? '都市名と場所名で追加できます。地図の検索からも場所を選べます。' : '都市名も入れると、Google Mapsのリンクから場所を確認しやすくなります。'}</p></form>
+            <datalist id="tp-place-options">{placeOptions.map((name) => <option key={name} value={name} />)}</datalist>
+            <div className="tp-place-options" role="group" aria-label="場所の入力候補">
+              <div className="tp-place-options-heading"><span>候補から追加 · 履歴と入力例</span>{recentPlaces.length > 0 && <button type="button" onClick={() => setRecentPlaces([])}>履歴を消す</button>}</div>
+              {matchingPlaces.length > 0 ? <div>{matchingPlaces.map((name) => <button type="button" key={name} aria-label={`${name}を旅程に追加`} onClick={() => addNamedPlace(name)}><MapPin size={13} aria-hidden="true" /><span>{name}</span><small>{recentPlaces.includes(name) ? '履歴' : '入力例'}</small></button>)}</div> : <p>一致する候補はありません。入力した場所名でそのまま追加できます。</p>}
+            </div>
           </div>
 
           <div className="tp-summary" data-testid="trip-summary" aria-live="polite" aria-atomic="true">

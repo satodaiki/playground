@@ -168,6 +168,14 @@
 .tp-plan-start .tp-add-form { margin-top: 0; padding-top: 0; border-top: 0; max-width: 580px; }
 .tp-empty-plan + .tp-add-form { margin-top: 18px; }
 .tp-plan-start .tp-add-form button { width: 44px; }
+.tp-place-options { margin-top: 14px; }
+.tp-place-options-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.tp-place-options-heading > span, .tp-place-options-heading > button { font-size: 10px; color: #697862; }
+.tp-place-options-heading > button { text-decoration: underline; text-underline-offset: 3px; }
+.tp-place-options > div:last-child { display: flex; flex-wrap: wrap; gap: 7px; }
+.tp-place-options > div:last-child > button { display: flex; align-items: center; gap: 7px; padding: 9px 11px; border: 1px solid #dce3d3; background: #fffefa; border-radius: 18px; font-size: 12px; text-align: left; }
+.tp-place-options small { color: #697862; font-size: 9px; white-space: nowrap; }
+.tp-place-options > p { font-size: 11px; line-height: 1.8; color: #697862; }
 .tp-packing { margin-top: 22px; border: 1px solid #e3e5da; border-radius: 14px; background: #fffefa; }
 .tp-packing-body { padding: 0 24px 24px; }
 .tp-packing-description { font-size: 12px; line-height: 1.8; color: #697862; margin-bottom: 20px !important; }
