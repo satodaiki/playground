@@ -10,6 +10,7 @@ import LeapToFreedom from "@/components/pages/LeapToFreedom";
 import FreeBirds from "@/components/pages/FreeBirds";
 import VoiceAction from "@/components/pages/VoiceAction";
 import SubscriptionScanner from "@/components/pages/SubscriptionScanner";
+import TripPlanner from "@/components/pages/TripPlanner";
 import SlidesLink from "@/components/atoms/SlidesLink";
 import "@/App.css";
 
@@ -93,6 +94,13 @@ const PROJECTS = [
   //   path: '/wasm-terminal'
   // },
   {
+    id: "trip-planner",
+    title: "旅の余白",
+    description:
+      "時間の棒をのばす、並べ替える。地図といっしょに、自分のペースで旅程を整えるツール。",
+    path: "/trip-planner",
+  },
+  {
     id: "coming-soon",
     title: "次の作品を制作中...",
     description: "現在、新しいアイデアを形にしています。お楽しみに！",
@@ -167,6 +175,7 @@ export default function App() {
         <Route path="/birds" component={FreeBirds} />
         <Route path="/voice-action" component={VoiceAction} />
         <Route path="/subscription-scanner" component={SubscriptionScanner} />
+        <Route path="/trip-planner" component={TripPlanner} />
         {/*<Route path="/insider" component={Insider} />*/}
         {/* <Route path="/wasm-terminal" component={WasmTerminal} /> */}
         {/* <Route path="/tetlis" component={Tetlis} /> */}
