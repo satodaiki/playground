@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent } from 'react';
-import { ArrowLeft, ArrowRight, ArrowUpRight, Clock3, Footprints, GripVertical, MapPin, Plus, Route, Trash2, Undo2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Clock3, Footprints, GripVertical, MapPin, Plus, Route, Trash2, Undo2 } from 'lucide-react';
 import { Link } from 'wouter';
 
 import TripMap from './trip-planner/TripMap';
 import PlaceSearch from './trip-planner/PlaceSearch';
 import PackingChecklist from './trip-planner/PackingChecklist';
+import TripBooklet from './trip-planner/TripBooklet';
 import { emptyTrip, loadTripDraft, saveTripDraft } from './trip-planner/draft';
 import type { Stop } from './trip-planner/draft';
 import { hasCoordinates, placeUrl } from './trip-planner/maps';
@@ -49,10 +50,12 @@ export default function TripPlanner() {
   // shortcut: 削除の取り消しは直前の1件のみ。複数段階の取り消しが必要になったら履歴を持つ。
   const [removed, setRemoved] = useState<{ stop: Stop; index: number } | null>(null);
   const [placeName, setPlaceName] = useState('');
+  const [bookletOpen, setBookletOpen] = useState(false);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const resizing = useRef<{ id: string; x: number; duration: number } | null>(null);
   const placeInput = useRef<HTMLInputElement>(null);
   const timelineScroll = useRef<HTMLDivElement>(null);
+  const bookletButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const saved = saveTripDraft({ stops, departure, manualTravel, isSample, packing });
     // Storage availability is an external browser state; report a failed write without interrupting editing.
@@ -207,7 +210,7 @@ export default function TripPlanner() {
 
   return (
     <main className="tp-root">
-      <div className="tp-shell">
+      <div className="tp-shell" hidden={bookletOpen}>
         <header className="tp-header">
           <Link href="/" className="tp-back"><ArrowLeft size={15} aria-hidden="true" /> あそびば</Link>
           <div className="tp-brand"><Route size={22} strokeWidth={1.8} aria-hidden="true" />旅の余白<span>TRIP CANVAS</span></div>
@@ -222,7 +225,7 @@ export default function TripPlanner() {
         <section className="tp-plan" aria-labelledby="tp-plan-title">
           <div className="tp-plan-heading"><div><p className="tp-eyebrow">YOUR DAY, AT A GLANCE</p><h2 id="tp-plan-title">今日の旅程 {isSample && <span className="tp-sample-label">サンプル：金沢</span>}</h2></div><label className="tp-departure"><Clock3 size={16} aria-hidden="true" />出発時刻<input type="time" aria-label="出発時刻" value={departure} onChange={(event) => { if (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(event.target.value)) { setDeparture(event.target.value); setIsSample(false); } }} /></label></div>
 
-          <div className="tp-plan-actions"><button className="tp-primary" onClick={() => requestPlan('new')}><Plus size={16} aria-hidden="true" />新しい旅程を作る</button><button className="tp-secondary" onClick={() => requestPlan('sample')}>金沢のサンプルを見る</button></div>
+          <div className="tp-plan-actions"><button className="tp-primary" onClick={() => requestPlan('new')}><Plus size={16} aria-hidden="true" />新しい旅程を作る</button><button className="tp-secondary" onClick={() => requestPlan('sample')}>金沢のサンプルを見る</button><button ref={bookletButton} className="tp-secondary" onClick={() => setBookletOpen(true)} disabled={!stops.length && !packing.items.length}><BookOpen size={16} aria-hidden="true" />しおり</button></div>
           {pendingPlan && <div className="tp-plan-confirm" role="group" aria-label="旅程の切り替え確認"><p>現在の旅程と持ち物リストを置き換えます。残したい内容がないか確認してください。</p><div><button className="tp-primary" onClick={() => replacePlan(pendingPlan)}>{pendingPlan === 'new' ? '空の旅程に切り替える' : 'サンプルに切り替える'}</button><button className="tp-secondary" onClick={() => setPendingPlan(null)}>キャンセル</button></div></div>}
           <div className="tp-plan-start">
             {stops.length === 0 && <div className="tp-empty-plan"><h3>まずは、行きたい場所をひとつ。</h3><p>場所を追加して、自分だけの旅程を作れます。操作を試すなら金沢のサンプルもどうぞ。</p></div>}
@@ -352,6 +355,44 @@ export default function TripPlanner() {
 
         <footer className="tp-footer"><span>旅の余白 <span>—</span> 詰め込みすぎない、一日のために。</span><span role={saveFailed ? 'alert' : undefined}>{saveFailed ? 'このブラウザーに保存できません。ページを閉じると編集内容が失われます。' : '旅程と持ち物はこのブラウザーに自動保存されます。'}</span></footer>
       </div>
+      <TripBooklet key={planRevision} open={bookletOpen} onClose={() => {
+        setBookletOpen(false);
+        window.requestAnimationFrame(() => bookletButton.current?.focus());
+      }}>
+        <header className="tp-booklet-heading">
+          <p>旅の余白 · TRIP CANVAS</p>
+          <h1 id="tp-booklet-title">旅のしおり</h1>
+          {packing.destination && <p>{packing.destination}</p>}
+          {packing.purpose && <p>{packing.purpose}</p>}
+        </header>
+        {stops.length > 0 && <>
+          <dl className="tp-booklet-summary">
+            <div><dt>出発</dt><dd>{departure}</dd></div>
+            <div><dt>{hasTravel ? '終了予定' : '終了目安'}</dt><dd>{timeLabel(start + total)}</dd></div>
+            <div><dt>立ち寄り</dt><dd>{stops.length}スポット</dd></div>
+            <div><dt>滞在</dt><dd>{durationLabel(stayMinutes)}</dd></div>
+            <div><dt>徒歩移動</dt><dd>{hasTravel || hasKnownTravel ? durationLabel(travelMinutes) : '未入力'}</dd></div>
+          </dl>
+          {!hasTravel && <p className="tp-booklet-note">{missingTravel}区間の移動時間が未入力です。時刻は未入力の移動時間を含まない目安です。</p>}
+          <section aria-labelledby="tp-booklet-itinerary-title">
+            <h2 id="tp-booklet-itinerary-title">一日の旅程</h2>
+            <ol className="tp-booklet-itinerary">
+              {timeline.map(({ stop, arrival, leg }, index) => <li key={stop.id}>
+                <div className="tp-booklet-stop">
+                  <span className="tp-booklet-number">{String(index + 1).padStart(2, '0')}</span>
+                  <div><p className="tp-booklet-time">{timeLabel(arrival)} — {timeLabel(arrival + stop.duration)} · 滞在{durationLabel(stop.duration)}</p><h3>{stop.name}</h3>{stop.address && stop.address !== stop.name && <p className="tp-booklet-address">{stop.address}</p>}</div>
+                </div>
+                {leg && <p className="tp-booklet-travel">次の場所まで徒歩：{leg.minutes === null ? '未入力' : durationLabel(leg.minutes)}</p>}
+              </li>)}
+            </ol>
+          </section>
+        </>}
+        {packing.items.length > 0 && <section className="tp-booklet-packing" aria-labelledby="tp-booklet-packing-title">
+          <h2 id="tp-booklet-packing-title">持ち物チェックリスト</h2>
+          <ul>{packing.items.map((item) => <li key={item.id}><span aria-label={item.checked ? '準備済み' : '未準備'}>{item.checked ? '☑' : '☐'}</span><span>{item.name}</span></li>)}</ul>
+        </section>}
+        <footer className="tp-booklet-footer">ゆっくり、いこう。 — 旅の余白</footer>
+      </TripBooklet>
     </main>
   );
 }
