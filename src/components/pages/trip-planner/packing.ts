@@ -33,6 +33,7 @@ export const ACTIVITIES: Activity[] = [
   ] },
   { id: 'beach', label: '海・ビーチ', pattern: /海水浴|ビーチ|海辺|海岸|海で|海に|海へ|(?:^|\s)海(?:\s|$)|プール|beach|swim/, items: [
     { id: 'swimwear', name: '水着・ラッシュガード' }, TOWEL,
+    { id: 'swim-goggles', name: 'ゴーグル' },
     { id: 'sandals', name: 'ビーチサンダル' },
     { id: 'waterproof', name: '防水バッグ・濡れたものを入れる袋' }, SUN, WATER,
   ] },
