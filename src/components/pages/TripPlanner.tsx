@@ -391,7 +391,6 @@ export default function TripPlanner() {
           <h2 id="tp-booklet-packing-title">持ち物チェックリスト</h2>
           <ul>{packing.items.map((item) => <li key={item.id}><span aria-label={item.checked ? '準備済み' : '未準備'}>{item.checked ? '☑' : '☐'}</span><span>{item.name}</span></li>)}</ul>
         </section>}
-        <footer className="tp-booklet-footer">ゆっくり、いこう。 — 旅の余白</footer>
       </TripBooklet>
     </main>
   );

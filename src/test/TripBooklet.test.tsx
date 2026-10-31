@@ -26,7 +26,8 @@ function booklet(open = true, onClose = vi.fn()) {
 describe('紙のしおり', () => {
   beforeEach(() => {
     vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', '');
-    createObjectURL.mockReset().mockReturnValueOnce('blob:photo-1').mockReturnValueOnce('blob:photo-2');
+    let photoSequence = 0;
+    createObjectURL.mockReset().mockImplementation(() => `blob:photo-${++photoSequence}`);
     revokeObjectURL.mockReset();
     vi.stubGlobal('URL', class extends URL {
       static createObjectURL = createObjectURL;
@@ -89,15 +90,30 @@ describe('紙のしおり', () => {
     expect(screen.queryByRole('heading', { name: '一日の旅程' })).not.toBeInTheDocument();
   });
 
-  it('写真の読み込みを待って印刷し、閉じて開き直す・変更・削除時に写真を適切に扱う', async () => {
+  it('写真をまとめて追加し、追加入力・個別削除・再表示でも残りの写真を保つ', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     const view = render(booklet(true, onClose));
-    const photo = new File(['photo'], 'beach.jpg', { type: 'image/jpeg' });
-    await user.upload(screen.getByLabelText('しおりの写真'), photo);
-    expect(createObjectURL).toHaveBeenCalledWith(photo);
+    const first = new File(['beach'], 'beach.jpg', { type: 'image/jpeg' });
+    const second = new File(['cafe'], 'cafe.png', { type: 'image/png' });
+    await user.upload(screen.getByLabelText('しおりの写真'), [first, second]);
+    expect(screen.getByText('2枚の思い出')).toBeInTheDocument();
+    expect(screen.getAllByRole('img')).toHaveLength(2);
+    expect(createObjectURL).toHaveBeenCalledWith(first);
+    expect(createObjectURL).toHaveBeenCalledWith(second);
     expect(screen.getByRole('button', { name: '印刷・PDF保存' })).toBeDisabled();
-    fireEvent.load(screen.getByAltText('しおりの表紙写真'));
+    fireEvent.load(screen.getByAltText('旅の写真 1'));
+    expect(screen.getByRole('button', { name: '印刷・PDF保存' })).toBeDisabled();
+    fireEvent.load(screen.getByAltText('旅の写真 2'));
+    expect(screen.getByRole('button', { name: '印刷・PDF保存' })).toBeEnabled();
+
+    await user.upload(screen.getByLabelText('しおりの写真'), first);
+    expect(screen.getByText('3枚の思い出')).toBeInTheDocument();
+    expect(screen.getByAltText('旅の写真 1')).toHaveAttribute('src', 'blob:photo-1');
+    expect(screen.getByAltText('旅の写真 3')).toHaveAttribute('src', 'blob:photo-3');
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: '印刷・PDF保存' })).toBeDisabled();
+    fireEvent.load(screen.getByAltText('旅の写真 3'));
     expect(screen.getByRole('button', { name: '印刷・PDF保存' })).toBeEnabled();
 
     await user.click(screen.getByRole('button', { name: '旅程に戻る' }));
@@ -105,17 +121,21 @@ describe('紙のしおり', () => {
     view.rerender(booklet(false, onClose));
     expect(revokeObjectURL).not.toHaveBeenCalled();
     view.rerender(booklet(true, onClose));
-    expect(screen.getByAltText('しおりの表紙写真')).toHaveAttribute('src', 'blob:photo-1');
+    expect(screen.getAllByRole('img')).toHaveLength(3);
     expect(screen.getByRole('button', { name: '印刷・PDF保存' })).toBeDisabled();
-    fireEvent.load(screen.getByAltText('しおりの表紙写真'));
+    screen.getAllByRole('img').forEach((image) => fireEvent.load(image));
 
-    await user.upload(screen.getByLabelText('しおりの写真'), photo);
-    expect(screen.getByAltText('しおりの表紙写真')).toHaveAttribute('src', 'blob:photo-2');
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:photo-1');
-    await user.click(screen.getByRole('button', { name: '写真を外す' }));
-    expect(screen.queryByAltText('しおりの表紙写真')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '写真2をアルバムから外す' }));
+    expect(screen.getByText('2枚の思い出')).toBeInTheDocument();
+    expect(screen.getByAltText('旅の写真 1')).toHaveAttribute('src', 'blob:photo-1');
+    expect(screen.getByAltText('旅の写真 2')).toHaveAttribute('src', 'blob:photo-3');
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:photo-2');
+    expect(revokeObjectURL).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: '印刷・PDF保存' })).toBeEnabled();
+    view.unmount();
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:photo-1');
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:photo-3');
+    expect(revokeObjectURL).toHaveBeenCalledTimes(3);
   });
 
   it.each([
@@ -128,15 +148,38 @@ describe('紙のしおり', () => {
     expect(createObjectURL).not.toHaveBeenCalled();
   });
 
-  it('壊れた画像は取り除き、写真なしで印刷を続けられる', async () => {
+  it('混ざった非対応ファイルだけを除き、選択した写真を追加できる', async () => {
+    render(booklet());
+    const photo = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
+    fireEvent.change(screen.getByLabelText('しおりの写真'), { target: { files: [new File(['text'], 'notes.txt', { type: 'text/plain' }), photo] } });
+    expect(screen.getByRole('alert')).toHaveTextContent('追加できない写真');
+    expect(screen.getAllByRole('img')).toHaveLength(1);
+    expect(createObjectURL).toHaveBeenCalledExactlyOnceWith(photo);
+  });
+
+  it('一部の写真の読み込みに失敗しても、残りの写真と追加済みの写真を保つ', async () => {
+    render(booklet());
+    const photo = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
+    await userEvent.upload(screen.getByLabelText('しおりの写真'), photo);
+    createObjectURL.mockImplementationOnce(() => { throw new Error('Read failed'); });
+    fireEvent.change(screen.getByLabelText('しおりの写真'), { target: { files: [photo, photo] } });
+    expect(screen.getByRole('alert')).toHaveTextContent('読み込めない写真');
+    expect(screen.getAllByRole('img')).toHaveLength(2);
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('壊れた画像だけを外し、他の写真は印刷と追加を続けられる', async () => {
     const view = render(booklet());
-    await userEvent.upload(screen.getByLabelText('しおりの写真'), new File(['broken'], 'broken.png', { type: 'image/png' }));
-    fireEvent.error(screen.getByAltText('しおりの表紙写真'));
-    expect(screen.getByRole('alert')).toHaveTextContent('写真を表示できませんでした');
+    await userEvent.upload(screen.getByLabelText('しおりの写真'), [new File(['photo'], 'photo.jpg', { type: 'image/jpeg' }), new File(['broken'], 'broken.png', { type: 'image/png' })]);
+    fireEvent.load(screen.getByAltText('旅の写真 1'));
+    fireEvent.error(screen.getByAltText('旅の写真 2'));
+    expect(screen.getByRole('alert')).toHaveTextContent('表示できない写真をアルバムから外しました');
+    expect(screen.getAllByRole('img')).toHaveLength(1);
     expect(screen.getByRole('button', { name: '印刷・PDF保存' })).toBeEnabled();
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:photo-1');
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:photo-2');
     await userEvent.upload(screen.getByLabelText('しおりの写真'), new File(['photo'], 'photo.png', { type: 'image/png' }));
     view.unmount();
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:photo-2');
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:photo-1');
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:photo-3');
   });
 });
