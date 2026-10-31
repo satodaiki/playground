@@ -140,21 +140,25 @@ describe('紙のしおり', () => {
 
   it.each([
     new File(['<svg/>'], 'image.svg', { type: 'image/svg+xml' }),
+    new File(['photo'], 'image.heic', { type: 'image/heic' }),
     new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'large.jpg', { type: 'image/jpeg' }),
-  ])('非対応の形式や大きすぎる写真は読み込まない: $name', (file) => {
+  ])('形式の許可リストや10MB上限で写真を拒否しない: $name', (file) => {
     render(booklet());
     fireEvent.change(screen.getByLabelText('しおりの写真'), { target: { files: [file] } });
-    expect(screen.getByRole('alert')).toHaveTextContent('10MB以下');
-    expect(createObjectURL).not.toHaveBeenCalled();
+    expect(createObjectURL).toHaveBeenCalledExactlyOnceWith(file);
+    expect(screen.getAllByRole('img')).toHaveLength(1);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('混ざった非対応ファイルだけを除き、選択した写真を追加できる', async () => {
+  it('形式情報が空の写真も他の写真と一緒に追加できる', () => {
     render(booklet());
     const photo = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
-    fireEvent.change(screen.getByLabelText('しおりの写真'), { target: { files: [new File(['text'], 'notes.txt', { type: 'text/plain' }), photo] } });
-    expect(screen.getByRole('alert')).toHaveTextContent('追加できない写真');
-    expect(screen.getAllByRole('img')).toHaveLength(1);
-    expect(createObjectURL).toHaveBeenCalledExactlyOnceWith(photo);
+    const unknown = new File(['photo'], 'unknown.jpg');
+    fireEvent.change(screen.getByLabelText('しおりの写真'), { target: { files: [unknown, photo] } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('img')).toHaveLength(2);
+    expect(createObjectURL).toHaveBeenCalledWith(unknown);
+    expect(createObjectURL).toHaveBeenCalledWith(photo);
   });
 
   it('一部の写真の読み込みに失敗しても、残りの写真と追加済みの写真を保つ', async () => {

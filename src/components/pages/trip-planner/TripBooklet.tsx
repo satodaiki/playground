@@ -34,17 +34,13 @@ export default function TripBooklet({ open, onClose, children }: Props) {
       <h2 ref={heading} tabIndex={-1}>しおりのプレビュー</h2>
       <div>
         <button type="button" className="tp-secondary" onClick={() => fileInput.current?.click()}><ImagePlus size={16} aria-hidden="true" />写真を追加</button>
-        <input ref={fileInput} type="file" aria-label="しおりの写真" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={(event) => {
+        <input ref={fileInput} type="file" aria-label="しおりの写真" accept="image/*" multiple hidden onChange={(event) => {
           const files = Array.from(event.currentTarget.files || []);
           event.currentTarget.value = '';
           if (!files.length) return;
           const added: Photo[] = [];
           let message = '';
           for (const file of files) {
-            if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
-              message = '追加できない写真がありました。JPEG・PNG・WebP形式で、1枚10MB以下の写真を選んでください。';
-              continue;
-            }
             try {
               const url = URL.createObjectURL(file);
               photoUrls.current.add(url);
@@ -58,7 +54,7 @@ export default function TripBooklet({ open, onClose, children }: Props) {
         }} />
         <button type="button" className="tp-primary" disabled={loading} onClick={() => window.print()}><Printer size={16} aria-hidden="true" />印刷・PDF保存</button>
       </div>
-      <p>旅のあとに写真を複数追加して、思い出のアルバムにできます（JPEG・PNG・WebP、1枚10MBまで）。外部に送信せず、再読み込み・旅程の切り替えで消えます。残したいアルバムはPDFで保存してください。</p>
+      <p>旅のあとに写真を複数追加して、思い出のアルバムにできます。外部に送信せず、再読み込み・旅程の切り替えで消えます。残したいアルバムはPDFで保存してください。</p>
       {loading && <p role="status">写真を読み込み中…</p>}
       {error && <p role="alert">{error}</p>}
     </div>
@@ -73,7 +69,7 @@ export default function TripBooklet({ open, onClose, children }: Props) {
           {photos.map((photo, index) => <figure key={photo.url} className="tp-booklet-photo">
             <img src={photo.url} alt={`旅の写真 ${index + 1}`} onLoad={() => setPhotos((current) => current.map((item) => item.url === photo.url ? { ...item, loaded: true } : item))} onError={() => {
               removePhoto(photo.url);
-              setError('表示できない写真をアルバムから外しました。別の写真を選んでください。');
+              setError('このブラウザーで表示できない写真をアルバムから外しました。対応していない形式か、画像ファイルが壊れている可能性があります。');
             }} />
             <figcaption><span>PHOTO {String(index + 1).padStart(2, '0')}</span><button type="button" aria-label={`写真${index + 1}をアルバムから外す`} onClick={() => removePhoto(photo.url)}><Trash2 size={15} aria-hidden="true" />外す</button></figcaption>
           </figure>)}
