@@ -13,10 +13,11 @@ vi.mock('@/components/pages/trip-planner/maps', async (original) => ({
 }));
 
 function mockSdk() {
-  const importLibrary = vi.fn().mockResolvedValue({});
+  const importLibrary = vi.fn().mockResolvedValue({
+    PlaceAutocompleteElement: class { constructor() { return document.createElement('input'); } },
+  });
   vi.mocked(loadGoogleMaps).mockResolvedValue({
     importLibrary,
-    places: { PlaceAutocompleteElement: class { constructor() { return document.createElement('input'); } } },
   } as unknown as GoogleMaps);
   return importLibrary;
 }
@@ -93,6 +94,36 @@ describe('Google Placesの候補検索', () => {
     render(<TripPlanner />);
     await screen.findByText(/候補検索を利用できません/);
     expect(screen.getByLabelText('最初に行きたい場所は？')).toBeEnabled();
+  });
+
+  it('読み込みを再試行すると手入力中の文字を候補検索へ引き継ぐ', async () => {
+    mockSdk();
+    vi.mocked(loadGoogleMaps).mockRejectedValueOnce(new Error('Offline'));
+    const user = userEvent.setup();
+    render(<TripPlanner />);
+    await screen.findByText(/候補検索を利用できません/);
+    await user.type(screen.getByLabelText('最初に行きたい場所は？'), '京都駅');
+    await user.click(screen.getByRole('button', { name: '候補検索を再試行' }));
+    const input = await searchInput();
+    expect(input).toHaveValue('京都駅');
+    select(input, prediction());
+    await screen.findByRole('button', { name: '京都駅、滞在45分' });
+  });
+
+  it('詳細取得がタイムアウトした後、遅れて届いた場所を追加しない', async () => {
+    vi.useFakeTimers();
+    try {
+      mockSdk();
+      let finish: () => void = () => {};
+      render(<TripPlanner />);
+      await act(async () => {});
+      const input = screen.getByLabelText('最初に行きたい場所は？');
+      select(input, prediction({ fetchFields: () => new Promise<void>((resolve) => { finish = resolve; }) }));
+      await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
+      expect(screen.getByText(/場所を取得できませんでした/)).toBeInTheDocument();
+      await act(async () => finish());
+      expect(JSON.parse(localStorage.getItem(TRIP_DRAFT_KEY)!).stops).toEqual([]);
+    } finally { vi.useRealTimers(); }
   });
 
   it.each([

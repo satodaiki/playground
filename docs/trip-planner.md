@@ -41,21 +41,50 @@
 
 ## Google Maps
 
-Google CloudでMaps JavaScript API、Routes API、Places API (New) を有効にし、課金設定を済ませます。HTTPリファラーと利用APIを制限したブラウザ用キーを、既存の `.env.local` に追加してください。
+Google CloudでMaps JavaScript API、Routes API、Places API (New) を有効にし、課金設定を済ませます。[Google Cloud Consoleの認証情報](https://console.cloud.google.com/apis/credentials)でブラウザー用のAPIキーを作成し、既存の `.env.local` に追加してください。設定項目は `.env.example` でも確認できます。
 
 ```dotenv
 VITE_GOOGLE_MAPS_API_KEY=your-browser-api-key
+# 独自のJavaScript用マップIDがある場合（省略時はDEMO_MAP_ID）
+VITE_GOOGLE_MAPS_MAP_ID=your-javascript-map-id
 ```
 
 開発サーバーを再起動すると、旅程の上にGoogle公式の `PlaceAutocompleteElement` による候補検索を表示します。入力文字列はGoogleへ送信されます。検索候補から選択した後に、場所名・住所・座標だけを取得します。地図の読み込みや経路計算の成否とは独立して検索できます。
 
-本番ではこの環境変数を設定してから再ビルド・デプロイします。キーは公開されるブラウザー用なので、HTTPリファラー制限には本番ドメイン（開発用にはlocalhost）を登録し、API制限にはMaps JavaScript API・Places API (New)・Routes APIを指定してください。キー未設定のままビルドすると、デプロイ後も実際の検索候補は表示されません。Google Maps Platformの利用料金が発生し得るため、課金と予算通知も設定します。
+本番ではこの環境変数を設定してから再ビルド・デプロイします。キーは公開されるブラウザー用なので、HTTPリファラー制限には `https://playground.neer-engineer.com/*` と開発確認用の `http://localhost:5173/*` を登録し、API制限にはMaps JavaScript API・Places API (New)・Routes APIを指定してください。キー未設定のままビルドすると、デプロイ後も実際の地図と検索候補は表示されません。Google Maps Platformの利用料金が発生し得るため、課金と予算通知も設定します。
+
+```bash
+# 本番モードで設定の有無を確認（キーの値は表示しません）
+npm run check:maps
+# キー未設定のままデプロイすることを防ぐ、Google Maps用のデプロイ手順
+npm run deploy:maps
+```
+
+`check:maps` は設定の有無だけを検証します。キーの有効性、APIの有効化、課金、HTTPリファラー制限の正しさはブラウザーで確認してください。[Google公式のキー設定手順](https://developers.google.com/maps/documentation/javascript/get-api-key)も参照できます。
+
+このプロジェクトの本番用キーは、AWS Systems Manager Parameter Storeの `/playground/production/google-maps/browser-api-key` に `SecureString` として暗号化保存します。`check:maps`・`dev:maps`・`build:maps`・`deploy:maps` は、環境変数にキーがなければAWS CLIでこの値を取得し、子プロセスにだけ渡します。キーを設定ファイルへ書き戻したり、値をコンソールへ表示したりしません。AWS CLIの認証と `ssm:GetParameter` 権限が必要です。保存先は `GOOGLE_MAPS_API_KEY_PARAMETER`、リージョンは `AWS_REGION` / `AWS_DEFAULT_REGION` で変更できます。
+
+通常の `npm run deploy` も同じ設定取得処理を使います。キーを取得できない場合はビルド・S3への反映を開始せず終了します。`deploy:static` は設定を受け取った後の内部処理です。Subscription Scannerなど他の機能の `VITE_` 設定は、既存の環境変数や `.env.production.local` で維持してください。
+
+```bash
+# キーをGit管理対象のファイルに保存せず、実際のSDKで開発する
+npm run dev:maps -- --host 127.0.0.1 --port 5173
+```
+
+ブラウザー用キーはビルド後のJavaScriptに含まれる仕様です。Parameter Storeでの暗号化は保存・受け渡しの保護であり、Google Cloud側のHTTPリファラー制限とAPI制限の代わりにはなりません。
+
+Google公式の `@googlemaps/js-api-loader` を通してSDKを共有し、本番向けのquarterlyチャンネルで必要なライブラリだけを読み込みます。地図・検索・徒歩経路は別々に初期化するため、Routes APIが利用できない場合も地図と場所のピンは使えます。SDKの通信、地図タイル、候補の詳細、経路の取得にはそれぞれ15秒のタイムアウトを設けています。認証エラーはSDKの非同期通知も検知します。
+
+一時的な読み込み失敗では「地図を再読み込み」「候補検索を再試行」、経路取得だけの失敗では「徒歩経路を再取得」を使えます。認証エラーの場合は、管理者が設定を修正してから「ページを再読み込み」でSDKを読み込み直します。失敗した状態を永久にキャッシュしません。
+
+ピンの選択と旅程の選択を同期し、「旅程全体を表示」で地図を戻せます。画面サイズの変更やしおりから戻ったときにも表示範囲を調整します。名前だけで追加した場所は座標がないことを表示し、経路が取れた場合は経路全体が画面に収まるよう調整します。経路はGoogleの地点数上限に合わせて分割取得するため、27地点を超える旅程にも対応します。並べ替えや削除後に古い取得結果を表示せず、手入力の移動時間を優先します。
 
 設定後は地図・徒歩経路と移動時間も有効になります。出発から最後の地点までを計算し、帰路は最後に終了地点を追加して表現します。[Google公式の導入手順](https://developers.google.com/maps/documentation/javascript/place-autocomplete-new)を参照してください。
 
-キー未設定時も、予定の編集・名前による追加・移動時間の手入力・Google Mapsへのリンクを使えます。図はサンプル地点の位置関係のみを示します。移動時間を推測で埋めず、未入力の区間があれば明示します。終了時刻には入力・取得済みの区間だけを含めます。地点の変更後も、新しい経路の取得までは古い自動計算の移動時間を使いません。手入力は自動計算より優先し、取得し直しても上書きしません。
+キー未設定時も、予定の編集・名前による追加・移動時間の手入力・Google Mapsへのリンクを使えます。代替の図はGoogle Mapsではなく、座標のある地点の位置関係だけを示します。移動時間を推測で埋めず、未入力の区間があれば明示します。終了時刻には入力・取得済みの区間だけを含めます。地点の変更後も、新しい経路の取得までは古い自動計算の移動時間を使いません。手入力は自動計算より優先し、取得し直しても上書きしません。
 
 ```bash
 npm test -- src/test/TripPlanner.test.tsx src/test/TripPlannerStart.test.tsx src/test/PlaceSearch.test.tsx src/test/TripMap.test.tsx --maxWorkers=1
+npm test -- src/test/maps.test.ts src/test/routes.test.ts --maxWorkers=1
 npm run build
 ```

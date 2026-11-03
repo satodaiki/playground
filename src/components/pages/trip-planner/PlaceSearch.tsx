@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { Plus } from 'lucide-react';
-import { loadGoogleMaps } from './maps';
+import { importMapsLibrary, loadGoogleMaps, MapsIntegrationError, mapsErrorMessage, watchMapsAuthorization, withMapsTimeout } from './maps';
 import type { Place, PlaceSelectEvent } from './maps';
 
 type Props = {
@@ -14,11 +14,13 @@ type Props = {
 };
 
 export default function PlaceSearch({ label, value, inputRef, autoFocus = false, onChange, onAdd }: Props) {
-  const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+  const key = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined)?.trim();
   const search = useRef<HTMLDivElement>(null);
-  const widget = useRef<(HTMLElement & { value: string }) | null>(null);
+  const widget = useRef<google.maps.places.PlaceAutocompleteElement | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'unavailable'>(key ? 'loading' : 'unavailable');
   const [notice, setNotice] = useState(key ? 'Google Mapsの候補検索を読み込み中…' : 'Google Mapsの候補検索は未接続です。場所名を直接入力して追加できます。');
+  const [attempt, setAttempt] = useState(0);
+  const [failure, setFailure] = useState<unknown>(null);
   const add = useEffectEvent(onAdd);
   const change = useEffectEvent(onChange);
   const readValue = useEffectEvent(() => value);
@@ -27,14 +29,14 @@ export default function PlaceSearch({ label, value, inputRef, autoFocus = false,
     if (!key) return;
     let cancelled = false;
     let request = 0;
-    let autocomplete: (HTMLElement & { value: string }) | undefined;
+    let autocomplete: google.maps.places.PlaceAutocompleteElement | undefined;
     const selectPlace = (event: Event) => {
       const current = ++request;
       setNotice('選んだ場所を取得中…');
       void (async () => {
         try {
           const place = (event as PlaceSelectEvent).placePrediction.toPlace();
-          await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location'] });
+          await withMapsTimeout(place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location'] }));
           if (cancelled || current !== request) return;
           const lat = place.location?.lat();
           const lng = place.location?.lng();
@@ -51,43 +53,49 @@ export default function PlaceSearch({ label, value, inputRef, autoFocus = false,
       })();
     };
     const input = () => change(autocomplete?.value || '');
-    const searchError = () => {
+    const searchError = (error: unknown) => {
+      if (cancelled) return;
       ++request;
       autocomplete?.remove();
       widget.current = null;
       setStatus('unavailable');
-      setNotice('Google Mapsの候補検索を利用できません。場所名を直接入力して追加できます。');
+      setFailure(error);
+      setNotice(mapsErrorMessage(error, 'search'));
     };
+    const requestError = () => searchError(new MapsIntegrationError('network'));
+    const unsubscribe = watchMapsAuthorization(searchError);
     void (async () => {
       try {
-        const google = await loadGoogleMaps(key);
-        await google.importLibrary('places');
+        const sdk = await loadGoogleMaps(key);
+        if (cancelled) return;
+        const { PlaceAutocompleteElement } = await importMapsLibrary(sdk, 'places');
         if (cancelled || !search.current) return;
-        autocomplete = new google.places.PlaceAutocompleteElement();
+        autocomplete = new PlaceAutocompleteElement({ requestedLanguage: 'ja', requestedRegion: 'jp' });
         autocomplete.setAttribute('aria-labelledby', 'tp-place-search-label');
         autocomplete.setAttribute('aria-describedby', 'tp-place-search-notice');
         autocomplete.setAttribute('placeholder', '都市名・駅・観光スポットを検索');
         autocomplete.value = readValue();
         autocomplete.addEventListener('gmp-select', selectPlace);
-        autocomplete.addEventListener('gmp-error', searchError);
+        autocomplete.addEventListener('gmp-error', requestError);
         autocomplete.addEventListener('input', input);
         widget.current = autocomplete;
         search.current.replaceChildren(autocomplete);
         setStatus('ready');
         setNotice('Google Mapsの候補を選ぶと、住所・位置情報付きで旅程に追加します。');
-      } catch {
-        if (!cancelled) searchError();
+      } catch (error) {
+        if (!cancelled) searchError(error);
       }
     })();
     return () => {
       cancelled = true;
+      unsubscribe();
       autocomplete?.removeEventListener('gmp-select', selectPlace);
-      autocomplete?.removeEventListener('gmp-error', searchError);
+      autocomplete?.removeEventListener('gmp-error', requestError);
       autocomplete?.removeEventListener('input', input);
       autocomplete?.remove();
       widget.current = null;
     };
-  }, [key]);
+  }, [key, attempt]);
 
   useEffect(() => {
     if (widget.current && widget.current.value !== value) widget.current.value = value;
@@ -120,7 +128,11 @@ export default function PlaceSearch({ label, value, inputRef, autoFocus = false,
       <p id="tp-place-search-label" className="tp-place-search-label">{label}</p>
       <div ref={search} className="tp-place-search" />
     </div>
-    <p id="tp-place-search-notice" className="tp-place-search-notice" role="status">{notice}</p>
+    <p id="tp-place-search-notice" className="tp-place-search-notice" role="status" aria-label="候補検索の状態">{notice}</p>
+    {key && status === 'unavailable' && <button className="tp-secondary" type="button" onClick={() => {
+      if (failure instanceof MapsIntegrationError && ['authorization', 'key-changed'].includes(failure.code)) window.location.reload();
+      else { setStatus('loading'); setNotice('Google Mapsの候補検索を読み込み中…'); setAttempt((current) => current + 1); }
+    }}>{failure instanceof MapsIntegrationError && ['authorization', 'key-changed'].includes(failure.code) ? 'ページを再読み込み' : '候補検索を再試行'}</button>}
     {status === 'ready' ? <details className="tp-place-manual"><summary>場所名だけで追加する</summary>{manualForm}</details> : manualForm}
   </div>;
 }
