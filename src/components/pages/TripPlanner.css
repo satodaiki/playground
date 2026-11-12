@@ -103,7 +103,7 @@
 .tp-map { position: relative; }
 .tp-map-canvas { width: 100%; height: 340px; min-height: 340px; background: #e9ede4; }
 .tp-map-canvas[aria-busy="true"] { background: linear-gradient(135deg, #e9ede4, #f4f6ef); }
-.tp-map-toolbar { padding: 0 24px 14px; }
+.tp-map-toolbar { padding: 16px 24px 14px; }
 .tp-place-entry { max-width: 580px; }
 .tp-place-search { display: block; width: 100%; }
 .tp-place-search-label { font-size: 12px; margin-bottom: 9px !important; }
@@ -243,6 +243,7 @@
   .tp-editor { grid-row: 1; }
   .tp-footer { font-size: 9px; }
   .tp-plan-actions { padding: 0 18px 16px; }
+  .tp-map-toolbar { padding: 14px 18px 12px; }
   .tp-plan-confirm, .tp-plan-start { margin: 0 18px 16px; padding: 16px; }
   .tp-empty-plan h3 { font-size: 15px; }
   .tp-packing { margin-top: 16px; }
