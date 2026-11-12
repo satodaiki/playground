@@ -152,3 +152,39 @@ describe('アップグレードUI', () => {
     expect(saveTripDraft).toBeDefined();
   });
 });
+
+describe('day removal', () => {
+  it('removes empty trailing days one by one', async () => {
+    const user = userEvent.setup();
+    render(<TripPlanner />);
+    await user.click(screen.getByRole('button', { name: '金沢のサンプルを見る' }));
+    await user.click(screen.getByRole('button', { name: '日を追加' }));
+    await user.click(screen.getByRole('button', { name: '日を追加' }));
+    expect(screen.getByRole('button', { name: '3日目に追加' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '日を削除' }));
+    expect(screen.queryByRole('button', { name: '3日目に追加' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '2日目に追加' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '日を削除' }));
+    expect(screen.queryByRole('button', { name: '2日目に追加' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '日を削除' })).not.toBeInTheDocument();
+  });
+
+  it('asks for confirmation before removing a day that has stops', async () => {
+    const user = userEvent.setup();
+    render(<TripPlanner />);
+    await user.click(screen.getByRole('button', { name: '金沢のサンプルを見る' }));
+    expect(screen.getByTestId('trip-summary')).toHaveTextContent('5スポット');
+    await user.click(screen.getByRole('button', { name: '日を追加' }));
+    const bar = document.querySelector('.tp-bar-content');
+    if (!bar) throw new Error('stop bar not found');
+    await user.click(bar as HTMLElement);
+    await user.selectOptions(screen.getByLabelText('予定の日'), '2');
+    await user.click(screen.getByRole('button', { name: '日を削除' }));
+    expect(screen.getByRole('group', { name: '日の削除確認' })).toBeInTheDocument();
+    expect(screen.getByTestId('trip-summary')).toHaveTextContent('5スポット');
+    await user.click(screen.getByRole('button', { name: '2日目を削除する' }));
+    expect(screen.queryByRole('group', { name: '日の削除確認' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('trip-summary')).toHaveTextContent('4スポット');
+    expect(screen.queryByRole('button', { name: '2日目に追加' })).not.toBeInTheDocument();
+  });
+});

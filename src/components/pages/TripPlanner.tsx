@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent } from 'react';
-import { ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, CalendarDays, Car, Clock3, CloudSun, Footprints, GripVertical, Link2, MapPin, Plus, Route, TrainFront, Trash2, Undo2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, CalendarDays, Car, Clock3, CloudSun, Footprints, GripVertical, Link2, MapPin, Minus, Plus, Route, TrainFront, Trash2, Undo2 } from 'lucide-react';
 import { Link } from 'wouter';
 
 import TripMap from './trip-planner/TripMap';
@@ -78,6 +78,7 @@ export default function TripPlanner() {
   const [weather, setWeather] = useState<WeatherDay[] | undefined>(initial.draft.weather);
   const [weatherStatus, setWeatherStatus] = useState('');
   const [pendingPlan, setPendingPlan] = useState<'new' | 'sample' | null>(null);
+  const [pendingRemoveDay, setPendingRemoveDay] = useState(false);
   const [planRevision, setPlanRevision] = useState(0);
   const [saveFailed, setSaveFailed] = useState(false);
   const [travel, setTravel] = useState<number[] | null>(null);
@@ -296,6 +297,35 @@ export default function TripPlanner() {
     const nextSelected = next[Math.min(selectedIndex, next.length - 1)];
     setSelectedId(nextSelected?.id ?? null);
     setDurationDraft(String(nextSelected?.duration ?? 45));
+  }
+
+  function removeLastDay() {
+    const lastDay = dayCount;
+    if (lastDay <= 1) return;
+    const dayStops = stops.filter((stop) => stopDay(stop) === lastDay);
+    if (dayStops.length > 0 && !pendingRemoveDay) {
+      setPendingRemoveDay(true);
+      return;
+    }
+    setPendingRemoveDay(false);
+    setIsSample(false);
+    const next = stops.filter((stop) => stopDay(stop) !== lastDay);
+    setStops(next);
+    setDaysExplicit(lastDay - 1);
+    setDepartures((current) => {
+      const copy = { ...current };
+      delete copy[String(lastDay)];
+      return copy;
+    });
+    setTravel(null);
+    setSelectedLeg(null);
+    setRemoved(null);
+    if (selected && stopDay(selected) === lastDay) {
+      const fallback = next[next.length - 1];
+      setSelectedId(fallback?.id ?? null);
+      setDurationDraft(String(fallback?.duration ?? 45));
+    }
+    if (selectedDay > lastDay - 1) setSelectedDay(lastDay - 1);
   }
 
   function restoreStop() {
@@ -553,7 +583,9 @@ export default function TripPlanner() {
           {dayCount > 1 || stops.length > 0 ? <div className="tp-day-tabs" role="group" aria-label="予定を追加する日">
             {daysList.map((day) => <button key={day} type="button" aria-pressed={selectedDay === day} onClick={() => setSelectedDay(day)}>{day}日目に追加</button>)}
             <button type="button" onClick={() => { const next = dayCount + 1; setDaysExplicit(next); setSelectedDay(next); setIsSample(false); }}><Plus size={14} aria-hidden="true" />日を追加</button>
+            {dayCount > 1 && <button type="button" onClick={removeLastDay}><Minus size={14} aria-hidden="true" />日を削除</button>}
           </div> : null}
+          {pendingRemoveDay && <div className="tp-plan-confirm" role="group" aria-label="日の削除確認"><p>{dayCount}日目にはスポットが{stops.filter((stop) => stopDay(stop) === dayCount).length}件あります。この日を削除すると、そのスポットも一緒に削除されます。</p><div><button className="tp-primary" onClick={removeLastDay}>{dayCount}日目を削除する</button><button className="tp-secondary" onClick={() => setPendingRemoveDay(false)}>キャンセル</button></div></div>}
 
           <div className="tp-summary" data-testid="trip-summary" aria-live="polite" aria-atomic="true">
             <div><span>立ち寄り</span><strong>{stops.length}<small>スポット</small></strong></div>
