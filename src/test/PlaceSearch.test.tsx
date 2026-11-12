@@ -55,7 +55,7 @@ describe('Google Placesの候補検索', () => {
     select(input, place);
 
     await screen.findByRole('button', { name: '京都駅、滞在45分' });
-    expect(place.fetchFields).toHaveBeenCalledWith({ fields: ['displayName', 'formattedAddress', 'location'] });
+    expect(place.fetchFields).toHaveBeenCalledWith({ fields: ['displayName', 'formattedAddress', 'location', 'regularOpeningHours'] });
     await waitFor(() => expect(JSON.parse(localStorage.getItem(TRIP_DRAFT_KEY)!).stops).toEqual([
       { id: 'google-kyoto', name: '京都駅', address: place.formattedAddress, lat: 34.9858, lng: 135.7588, duration: 45, color: 0 },
     ]));

@@ -36,14 +36,22 @@ export default function PlaceSearch({ label, value, inputRef, autoFocus = false,
       void (async () => {
         try {
           const place = (event as PlaceSelectEvent).placePrediction.toPlace();
-          await withMapsTimeout(place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location'] }));
+          await withMapsTimeout(place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location', 'regularOpeningHours'] }));
           if (cancelled || current !== request) return;
           const lat = place.location?.lat();
           const lng = place.location?.lng();
           if (!place.id || lat === undefined || lng === undefined || !Number.isFinite(lat) || !Number.isFinite(lng)
             || Math.abs(lat) > 90 || Math.abs(lng) > 180) throw new Error('Missing location');
           const name = place.displayName || place.formattedAddress || '追加した場所';
-          add({ id: place.id, name, address: place.formattedAddress || '', lat, lng });
+          const hours = place.regularOpeningHours;
+          const openingHours = hours?.periods?.length ? {
+            periods: hours.periods.map((period) => ({
+              open: { day: period.open.day, hour: period.open.hour, minute: period.open.minute },
+              ...(period.close ? { close: { day: period.close.day, hour: period.close.hour, minute: period.close.minute } } : {}),
+            })),
+            ...(hours.weekdayDescriptions?.length ? { weekdayDescriptions: [...hours.weekdayDescriptions] } : {}),
+          } : undefined;
+          add({ id: place.id, name, address: place.formattedAddress || '', lat, lng, ...(openingHours ? { openingHours } : {}) });
           change('');
           if (autocomplete) { autocomplete.value = ''; autocomplete.focus(); }
           setNotice(`${name}を追加しました。次の場所を検索できます。`);

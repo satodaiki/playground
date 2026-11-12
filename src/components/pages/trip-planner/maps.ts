@@ -2,13 +2,28 @@
 
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 
+export type OpeningHoursPoint = { day: number; hour: number; minute: number };
+export type OpeningHoursPeriod = { open: OpeningHoursPoint; close?: OpeningHoursPoint };
+export type PlaceOpeningHours = { periods: OpeningHoursPeriod[]; weekdayDescriptions?: string[] };
+
 export type Place = {
   id: string;
   name: string;
   address: string;
   lat?: number;
   lng?: number;
+  openingHours?: PlaceOpeningHours;
 };
+
+export type TravelMode = 'WALKING' | 'TRANSIT' | 'DRIVING';
+export const TRAVEL_MODES: { id: TravelMode; label: string; mapsParam: string }[] = [
+  { id: 'WALKING', label: '徒歩', mapsParam: 'walking' },
+  { id: 'TRANSIT', label: '電車', mapsParam: 'transit' },
+  { id: 'DRIVING', label: '車', mapsParam: 'driving' },
+];
+export function travelModeLabel(mode: TravelMode): string {
+  return TRAVEL_MODES.find((item) => item.id === mode)?.label ?? '徒歩';
+}
 
 type Coordinate = google.maps.LatLngLiteral;
 export type GoogleMaps = typeof google.maps;
@@ -116,7 +131,45 @@ export function hasCoordinates(place: Place): place is Place & Coordinate {
     && typeof place.lng === 'number' && Number.isFinite(place.lng) && Math.abs(place.lng) <= 180;
 }
 
-export function walkingUrl(from: Place, to: Place): string {
+export function travelUrl(from: Place, to: Place, mode: TravelMode = 'WALKING'): string {
   const location = (place: Place) => hasCoordinates(place) ? `${place.lat},${place.lng}` : place.address || place.name;
-  return `https://www.google.com/maps/dir/?${new URLSearchParams({ api: '1', origin: location(from), destination: location(to), travelmode: 'walking' })}`;
+  const mapsParam = TRAVEL_MODES.find((item) => item.id === mode)?.mapsParam ?? 'walking';
+  return `https://www.google.com/maps/dir/?${new URLSearchParams({ api: '1', origin: location(from), destination: location(to), travelmode: mapsParam })}`;
+}
+
+export function walkingUrl(from: Place, to: Place): string {
+  return travelUrl(from, to, 'WALKING');
+}
+
+/**
+ * 到着〜滞在が営業時間に収まるかを判定する。
+ * 判定材料が足りない場合（営業時間なし・日付なし）は null を返す。
+ * 収まらない場合は理由文字列を返す。
+ */
+export function openingHoursWarning(
+  hours: PlaceOpeningHours | undefined,
+  date: string,
+  arrivalMinutes: number,
+  durationMinutes: number,
+): string | null {
+  if (!hours?.periods?.length || !date) return null;
+  const parsed = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const weekday = parsed.getDay();
+  const relevant = hours.periods.filter((period) => period.open.day === weekday || period.close?.day === weekday);
+  if (!relevant.length) return 'その曜日は営業時間の情報がなく、休業日の可能性があります';
+  // 週の始まり（日曜0:00）からの分に直して、区間に収まるかで判定する。
+  const visitStart = weekday * 1440 + arrivalMinutes;
+  const visitEnd = visitStart + durationMinutes;
+  const fits = relevant.some((period) => {
+    const start = period.open.day * 1440 + period.open.hour * 60 + period.open.minute;
+    let end = period.close
+      ? period.close.day * 1440 + period.close.hour * 60 + period.close.minute
+      : (period.open.day + 1) * 1440;
+    if (end <= start) end += 7 * 1440;
+    // 前の曜日に始まった区間（深夜営業）は、訪問側を1週間後ろへずらしても判定する。
+    return (visitStart >= start && visitEnd <= end)
+      || (visitStart + 7 * 1440 >= start && visitEnd + 7 * 1440 <= end);
+  });
+  return fits ? null : '到着予定が営業時間外の可能性があります';
 }

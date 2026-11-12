@@ -1,17 +1,34 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import {
   hasCoordinates, importMapsLibrary, loadGoogleMaps, MAPS_TIMEOUT_MS, MapsIntegrationError,
-  mapsErrorMessage, placeUrl, walkingUrl, watchMapsAuthorization,
+  mapsErrorMessage, placeUrl, travelModeLabel, travelUrl, watchMapsAuthorization,
 } from './maps';
-import type { GoogleMaps, MapInstance, MapMarker, MapPolyline, Place } from './maps';
-import { computeWalkingRoutes } from './routes';
+import type { GoogleMaps, MapInstance, MapMarker, MapPolyline, Place, TravelMode } from './maps';
+import { computeTripRoutes } from './routes';
+import type { RouteLeg } from './routes';
 
+type MapStop = Place & { day?: number };
 type Props = {
-  stops: Place[];
+  stops: MapStop[];
   selectedId: string | null;
+  travelModes?: Record<string, TravelMode>;
   onSelect(id: string): void;
   onRoute(durations: number[] | null): void;
 };
+
+export function legKey(from: { id: string }, to: { id: string }): string {
+  return JSON.stringify([from.id, to.id]);
+}
+
+export function buildLegs(stops: MapStop[], travelModes: Record<string, TravelMode> = {}): RouteLeg[] {
+  const legs: RouteLeg[] = [];
+  stops.slice(0, -1).forEach((from, index) => {
+    const to = stops[index + 1];
+    if ((from.day ?? 1) !== (to.day ?? 1)) return;
+    legs.push({ from, to, mode: travelModes[legKey(from, to)] ?? 'WALKING' });
+  });
+  return legs;
+}
 type Runtime = { sdk: GoogleMaps; map: MapInstance; LatLngBounds: typeof google.maps.LatLngBounds };
 type MapState = { phase: 'loading' } | { phase: 'ready'; runtime: Runtime } | { phase: 'error'; error: unknown };
 type RouteState = { phase: 'idle' | 'loading' | 'ready' | 'error'; message: string; warnings: string[] };
@@ -24,7 +41,7 @@ function fitViewport(map: MapInstance, viewport: Viewport | null) {
   else { map.setCenter(viewport.point); map.setZoom(14); }
 }
 
-export default function TripMap({ stops, selectedId, onSelect, onRoute }: Props) {
+export default function TripMap({ stops, selectedId, travelModes = {}, onSelect, onRoute }: Props) {
   const key = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined)?.trim();
   const mapId = (import.meta.env.VITE_GOOGLE_MAPS_MAP_ID as string | undefined)?.trim() || 'DEMO_MAP_ID';
   const canvas = useRef<HTMLDivElement>(null);
@@ -39,11 +56,19 @@ export default function TripMap({ stops, selectedId, onSelect, onRoute }: Props)
   const select = useEffectEvent(onSelect);
   const updateRoute = useEffectEvent(onRoute);
   const readStops = useEffectEvent(() => stops);
+  const readModes = useEffectEvent(() => travelModes);
   const readSelected = useEffectEvent(() => selectedId);
   const locations = JSON.stringify(stops.map(({ id, name, address, lat, lng }) => ({ id, name, address, lat, lng })));
-  const routeLocations = JSON.stringify(stops.map((stop) => ({
-    id: stop.id, location: hasCoordinates(stop) ? { lat: stop.lat, lng: stop.lng } : stop.address || stop.name,
-  })));
+  const legsSignature = buildLegs(stops, travelModes).map((leg) => leg.mode).join(',');
+  const routeLocations = JSON.stringify({
+    stops: stops.map((stop) => ({
+      id: stop.id, day: stop.day ?? 1, location: hasCoordinates(stop) ? { lat: stop.lat, lng: stop.lng } : stop.address || stop.name,
+    })),
+    modes: legsSignature,
+  });
+  const allWalking = buildLegs(stops, travelModes).every((leg) => leg.mode === 'WALKING');
+  const routeWord = allWalking ? '徒歩経路' : '移動経路';
+  const routeMessage = (message: string) => allWalking ? message : message.replaceAll('徒歩経路', '移動経路').replaceAll('徒歩ルート', '移動ルート');
 
   useEffect(() => {
     if (!key || !canvas.current) return;
@@ -160,11 +185,17 @@ export default function TripMap({ stops, selectedId, onSelect, onRoute }: Props)
           setRouteState({ phase: 'idle', message: '', warnings: [] });
           return;
         }
-        setRouteState({ phase: 'loading', message: '徒歩経路を計算中…', warnings: [] });
+        const legs = buildLegs(points, readModes());
+        if (!legs.length) {
+          updateRoute([]);
+          setRouteState({ phase: 'idle', message: '', warnings: [] });
+          return;
+        }
+        setRouteState({ phase: 'loading', message: `${routeWord}を計算中…`, warnings: [] });
         try {
           const { Route } = await importMapsLibrary(runtime.sdk, 'routes');
           if (cancelled) return;
-          const result = await computeWalkingRoutes(Route, points, () => !cancelled);
+          const result = await computeTripRoutes(Route, legs, () => !cancelled);
           if (cancelled) return;
           const bounds = new runtime.LatLngBounds();
           result.routes.forEach((route) => {
@@ -179,12 +210,12 @@ export default function TripMap({ stops, selectedId, onSelect, onRoute }: Props)
             fitViewport(runtime.map, viewport.current);
           }
           updateRoute(result.minutes);
-          setRouteState({ phase: 'ready', message: '徒歩ルート・移動時間は Google Maps の目安です。', warnings: result.warnings });
+          setRouteState({ phase: 'ready', message: `${allWalking ? '徒歩ルート' : '移動ルート'}・移動時間は Google Maps の目安です。`, warnings: result.warnings });
         } catch (error) {
           polylines.forEach((line) => line.setMap(null));
           if (!cancelled) {
             updateRoute(null);
-            setRouteState({ phase: 'error', message: mapsErrorMessage(error, 'route'), warnings: [] });
+            setRouteState({ phase: 'error', message: routeMessage(mapsErrorMessage(error, 'route')), warnings: [] });
           }
         }
       })();
@@ -238,14 +269,18 @@ export default function TripMap({ stops, selectedId, onSelect, onRoute }: Props)
       <div className="tp-map-toolbar"><button type="button" className="tp-secondary" onClick={() => fitViewport(runtime.map, viewport.current)}>旅程全体を表示</button></div>
       {pinError && <p className="tp-map-notice">場所のピンを表示できませんでした。地図と下の場所リンクは利用できます。</p>}
       {unlocated > 0 && <p className="tp-map-notice">{unlocated}地点に位置情報がありません。検索候補から選んだ場所は、地図にピンを表示できます。</p>}
-      {routeState.phase !== 'idle' && <p className="tp-map-notice" role="status" aria-label="徒歩経路の状態">{routeState.message}</p>}
-      {routeState.phase === 'error' && <div className="tp-map-toolbar"><button type="button" className="tp-secondary" onClick={() => setRouteAttempt((current) => current + 1)}>徒歩経路を再取得</button></div>}
+      {routeState.phase !== 'idle' && <p className="tp-map-notice" role="status" aria-label={`${routeWord}の状態`}>{routeState.message}</p>}
+      {routeState.phase === 'error' && <div className="tp-map-toolbar"><button type="button" className="tp-secondary" onClick={() => setRouteAttempt((current) => current + 1)}>{routeWord}を再取得</button></div>}
       {routeState.warnings.map((warning, index) => <p className="tp-map-notice" key={index}>{warning}</p>)}
     </>}
-    <div className="tp-map-links">{stops.map((stop, index) => <span key={stop.id}>
-      <a href={placeUrl(stop)} target="_blank" rel="noreferrer">{index + 1}. {stop.name} ↗</a>
-      {index > 0 && <a href={walkingUrl(stops[index - 1], stop)} target="_blank" rel="noreferrer">{index} → {index + 1} の徒歩経路 ↗</a>}
-    </span>)}</div>
+    <div className="tp-map-links">{stops.map((stop, index) => {
+      const previous = stops[index - 1];
+      const mode = previous && (previous.day ?? 1) === (stop.day ?? 1) ? travelModes[legKey(previous, stop)] ?? 'WALKING' : null;
+      return <span key={stop.id}>
+        <a href={placeUrl(stop)} target="_blank" rel="noreferrer">{index + 1}. {stop.name} ↗</a>
+        {previous && mode && <a href={travelUrl(previous, stop, mode)} target="_blank" rel="noreferrer">{index} → {index + 1} の{travelModeLabel(mode)}経路 ↗</a>}
+      </span>;
+    })}</div>
   </div>;
 }
 

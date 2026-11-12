@@ -92,7 +92,7 @@ export function packingContext(draft: PackingDraft): string {
   return JSON.stringify([draft.destination.trim(), draft.purpose.trim(), [...draft.activities].sort()]);
 }
 
-export function suggestPacking(draft: PackingDraft): PackingDraft {
+export function suggestPacking(draft: PackingDraft, extra: { id: string; name: string; reason: string }[] = []): PackingDraft {
   const text = `${draft.destination} ${draft.purpose}`.normalize('NFKC').toLowerCase().trim();
   const suggestions = new Map<string, { suggestion: Suggestion; reasons: string[] }>();
   const add = (suggestion: Suggestion, reason: string) => {
@@ -105,6 +105,7 @@ export function suggestPacking(draft: PackingDraft): PackingDraft {
     .forEach((activity) => activity.items.forEach((item) => add(item, activity.label)));
   if (/雪|寒冷|冬|snow|cold/.test(text)) add(WARM, '雪・寒さへの備え');
   if (/雨|梅雨|rain/.test(text)) add(RAIN, '雨への備え');
+  extra.forEach((item) => add({ id: item.id, name: item.name }, item.reason));
   const checked = new Map(draft.items.map((item) => [item.id, item.checked]));
   const items: PackingItem[] = [...suggestions.values()].map(({ suggestion, reasons }) => ({
     ...suggestion, reason: [...new Set(reasons)].join('・'), checked: checked.get(suggestion.id) ?? false, custom: false,

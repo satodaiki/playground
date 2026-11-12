@@ -251,3 +251,32 @@
   .tp-packing-fields, .tp-packing-list { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { .tp-stop { transition: none; } }
+
+/* v0.7.8: trip settings / manager / days / modes / weather */
+.tp-trip-settings { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0 4px; }
+.tp-trip-settings label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; }
+.tp-trip-settings input { font-size: 16px; padding: 6px 10px; border: 1px solid #d8d2c4; border-radius: 8px; }
+.tp-trip-manager { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin: 10px 0 4px; }
+.tp-trip-manager label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; }
+.tp-trip-manager select { font-size: 15px; padding: 6px 10px; border: 1px solid #d8d2c4; border-radius: 8px; max-width: 260px; }
+.tp-share-notice { font-size: 13px; color: #276953; }
+.tp-day-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+.tp-day-tabs button { border: 1px solid #d8d2c4; background: #fff; border-radius: 999px; padding: 5px 12px; font-size: 13px; cursor: pointer; }
+.tp-day-tabs button[aria-pressed="true"] { background: #276953; color: #fff; border-color: #276953; }
+.tp-day-block { margin-top: 10px; }
+.tp-day-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.tp-day-heading h3 { margin: 6px 0; font-size: 17px; }
+.tp-day-heading h3 span { margin-left: 8px; font-size: 13px; color: #6b675c; font-weight: 500; }
+.tp-travel-modes { display: flex; gap: 8px; margin-bottom: 10px; }
+.tp-travel-modes button { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #d8d2c4; background: #fff; border-radius: 999px; padding: 5px 14px; font-size: 13px; cursor: pointer; }
+.tp-travel-modes button[aria-pressed="true"] { background: #276953; color: #fff; border-color: #276953; }
+.tp-editor-field { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; font-size: 13px; font-weight: 600; }
+.tp-editor-field textarea, .tp-editor-field input, .tp-editor-field select { font-size: 16px; padding: 6px 10px; border: 1px solid #d8d2c4; border-radius: 8px; font-weight: 400; }
+.tp-opening-hours { margin-top: 12px; font-size: 13px; }
+.tp-opening-hours ul { margin: 4px 0; padding-left: 18px; font-weight: 400; }
+.tp-opening-warning { margin-top: 10px; font-size: 13px; color: #9a3412; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 8px 10px; }
+.tp-weather { margin-top: 28px; }
+.tp-weather-list { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; }
+.tp-weather-list li { background: #eef6f2; border-radius: 999px; padding: 5px 12px; font-size: 13px; }
+.tp-booklet-memo, .tp-booklet-cost { font-size: 13px; color: #44403c; white-space: pre-wrap; }
+.tp-booklet-warning { font-size: 13px; color: #9a3412; }
