@@ -263,7 +263,7 @@
 .tp-trip-manager select { font-size: 15px; padding: 6px 10px; border: 1px solid #d8d2c4; border-radius: 8px; max-width: 260px; }
 .tp-share-notice { font-size: 13px; color: #276953; padding: 0 28px; margin: -6px 0 16px; line-height: 1.7; }
 .tp-day-tabs { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 28px; margin: 0 0 10px; }
-.tp-day-tabs button { border: 1px solid #d8d2c4; background: #fff; border-radius: 999px; padding: 7px 14px; font-size: 13px; cursor: pointer; }
+.tp-day-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; border: 1px solid #d8d2c4; background: #fff; border-radius: 999px; padding: 7px 14px; font-size: 13px; cursor: pointer; }
 .tp-day-tabs button[aria-pressed="true"] { background: #276953; color: #fff; border-color: #276953; }
 .tp-day-block { margin-top: 20px; }
 .tp-day-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 28px 14px; }
