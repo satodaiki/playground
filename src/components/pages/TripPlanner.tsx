@@ -656,9 +656,11 @@ export default function TripPlanner() {
         <section className="tp-weather" aria-labelledby="tp-weather-title">
           <div className="tp-section-heading"><div><p className="tp-eyebrow">WEATHER FOR YOUR TRIP</p><h2 id="tp-weather-title"><CloudSun size={19} aria-hidden="true" />旅の天気</h2></div></div>
           <p className="tp-weather-description">出発日と最初の地点の予報（Open-Meteo）を取得して、持ち物提案に活かせます。予報は出発の約16日前から取得できます。</p>
-          <button className="tp-secondary" onClick={fetchTripWeather} disabled={!startDate || !locatedStop}>天気予報を取得</button>
-          {!startDate && <span> 先に出発日を設定してください。</span>}
-          {startDate && !locatedStop && <span> 座標のある地点（候補検索で追加した場所）が必要です。</span>}
+          <div className="tp-weather-actions">
+            <button className="tp-secondary" onClick={fetchTripWeather} disabled={!startDate || !locatedStop}>天気予報を取得</button>
+            {!startDate && <span>先に出発日を設定してください。</span>}
+            {startDate && !locatedStop && <span>座標のある地点（候補検索で追加した場所）が必要です。</span>}
+          </div>
           {weatherStatus && <p role="status">{weatherStatus}</p>}
           {weather && weather.length > 0 && <><ul className="tp-weather-list">{weather.map((day) => <li key={day.date}>{weatherSummaryLine(day)}</li>)}</ul><button className="tp-primary" onClick={() => setPacking(suggestPacking(packing, weatherSuggestions(weather)))}>天気に合わせた持ち物を提案</button></>}
         </section>
